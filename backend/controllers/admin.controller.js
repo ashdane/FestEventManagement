@@ -1,5 +1,4 @@
 const Organizer = require('../models/Organizer'); //the first time it runs, the require does work to cache the object, but on subsequent runs, require just provides the reference of the cached object
-
 const createOrganizer = async (req, res) => { //express passes three things to all functions (requires object, response object and next function). it depends on the funciton and its parameters if it wants the function to call it. 2. the order matters, the first parameter is reserved for the requies object, the second for the response object and the third for the next function
     try {
         const { organization_name, email, password, description, category } = req.body;
@@ -19,5 +18,4 @@ const createOrganizer = async (req, res) => { //express passes three things to a
         return res.status(500).json({ error: error.message }); //500:Internal Server Error
     }
 };
-
 module.exports = { createOrganizer }; // in the module (file), I am createing a key value pair, the key is createOrganizer and the value is the function, If I did not use {}, i would be saying that the module refers to the function

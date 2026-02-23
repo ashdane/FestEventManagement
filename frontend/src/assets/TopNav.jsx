@@ -1,10 +1,7 @@
-import './TopNav.css';
 import { NavLink } from 'react-router-dom';
 import useLogout from '../hooks/useLogout';
-
 const TopNav = () => {
   const { LogoutLogic } = useLogout();
-
   return (
     <nav className="topnav">
       <NavLink to="/pptdash" className={({ isActive }) => (isActive ? 'active' : '')}>Dashboard</NavLink>
@@ -15,5 +12,4 @@ const TopNav = () => {
     </nav>
   );
 };
-
 export default TopNav;

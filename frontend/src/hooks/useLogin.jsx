@@ -28,9 +28,3 @@ const useLogin = () => { // custom hooks must start with use! + they cant take a
         return { submitfunc }
 }
 export default useLogin
-
-//hooks are react functions that are an API to core react concepts. it does away with the need of
-// this and class components
-
-//Error: hooks cant be async as they are expected to run synchronously. If not they would break React's
-//render flow

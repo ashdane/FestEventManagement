@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-
 const resetRequestSchema = new mongoose.Schema({
     organizerId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -18,5 +17,4 @@ const resetRequestSchema = new mongoose.Schema({
     adminComments: String,
     generatedPassword: String // Only populated after approval
 }, { timestamps: true });
-
 module.exports = mongoose.model('ResetRequest', resetRequestSchema);

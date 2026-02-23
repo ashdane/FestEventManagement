@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-
 const ticketSchema = new mongoose.Schema({
     participantId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -38,5 +37,4 @@ const ticketSchema = new mongoose.Schema({
         scannedAt: { type: Date }
     }
 }, { timestamps: true });
-
 module.exports = mongoose.model('Ticket', ticketSchema);

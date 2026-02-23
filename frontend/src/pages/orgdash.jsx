@@ -2,333 +2,194 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import useLogout from '../hooks/useLogout';
 import useVerifyRoles from '../hooks/useVerifyRoles';
 import EVENT_SERVICE from '../services/eventServices';
+import HOME_SERVICE from '../services/homeServices';
 import FormBuilder from '../components/events/FormBuilder';
-
-const DASHBOARD_VIEWS = {
-    DASHBOARD: 'dashboard',
-    CREATE: 'create',
-    PROFILE: 'profile',
-    ONGOING: 'ongoing'
-};
-
+const VIEWS = { DASHBOARD: 'dashboard', CREATE: 'create', PROFILE: 'profile', ONGOING: 'ongoing' };
 const DEFAULT_DRAFT = {
-    event_name: '',
-    event_description: '',
-    event_type: 'Normal',
-    eligibility: 'ALL',
-    reg_deadline: '',
-    event_start: '',
-    event_end: '',
-    reg_limit: 100,
-    reg_fee: 0
+    event_name: '', event_description: '', event_type: 'Normal', eligibility: 'ALL',
+    reg_deadline: '', event_start: '', event_end: '', reg_limit: 100, reg_fee: 0
 };
-
-const EMPTY_ANALYTICS = {
-    completed_events: 0,
-    total_registrations: 0,
-    total_sales: 0,
-    total_revenue: 0,
-    total_attendance: 0
-};
-
-const NAV_ITEMS = [
-    { key: DASHBOARD_VIEWS.DASHBOARD, label: 'Dashboard' },
-    { key: DASHBOARD_VIEWS.CREATE, label: 'Create Event' },
-    { key: DASHBOARD_VIEWS.PROFILE, label: 'Profile' },
-    { key: DASHBOARD_VIEWS.ONGOING, label: 'Ongoing Events' }
-];
-
-const OrganizerNav = ({ activeView, onViewChange, onLogout }) => (
-    <nav style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '14px' }}>
-        {NAV_ITEMS.map((item) => (
-            <button
-                key={item.key}
-                type="button"
-                onClick={() => onViewChange(item.key)}
-                style={{ background: activeView === item.key ? '#def2ff' : '#fff' }}
-            >
-                {item.label}
-            </button>
-        ))}
-        <button type="button" onClick={onLogout}>Logout</button>
-    </nav>
-);
-
-const AnalyticsCards = ({ analytics }) => (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(120px, 1fr))', gap: '10px' }}>
-        <div style={{ border: '1px solid #ccc', padding: '10px' }}><strong>Completed</strong><br />{analytics.completed_events}</div>
-        <div style={{ border: '1px solid #ccc', padding: '10px' }}><strong>Registrations</strong><br />{analytics.total_registrations}</div>
-        <div style={{ border: '1px solid #ccc', padding: '10px' }}><strong>Sales</strong><br />{analytics.total_sales}</div>
-        <div style={{ border: '1px solid #ccc', padding: '10px' }}><strong>Revenue</strong><br />INR {analytics.total_revenue}</div>
-        <div style={{ border: '1px solid #ccc', padding: '10px' }}><strong>Attendance</strong><br />{analytics.total_attendance}</div>
-    </div>
-);
-
-const DraftForm = ({ draftData, onDraftChange, onSubmit }) => (
-    <div style={{ marginTop: '20px', padding: '15px', border: '1px solid black', maxWidth: '640px' }}>
-        <h2>Create Event Draft</h2>
-        <form onSubmit={onSubmit} style={{ display: 'grid', gap: '10px' }}>
-            <input type="text" name="event_name" value={draftData.event_name} placeholder="Event Name" onChange={onDraftChange} required />
-            <textarea name="event_description" value={draftData.event_description} placeholder="Description" onChange={onDraftChange} required />
-            <label>Event Type</label>
-            <select name="event_type" value={draftData.event_type} onChange={onDraftChange} required>
-                <option value="Normal">Normal</option>
-                <option value="Merchandise">Merchandise</option>
-            </select>
-            <label>Eligibility</label>
-            <select name="eligibility" value={draftData.eligibility} onChange={onDraftChange} required>
-                <option value="ALL">All</option>
-                <option value="IIIT">IIIT</option>
-                <option value="NON_IIIT">Non-IIIT</option>
-            </select>
-            <label>Registration Deadline</label>
-            <input type="date" name="reg_deadline" value={draftData.reg_deadline} onChange={onDraftChange} required />
-            <label>Event Start</label>
-            <input type="date" name="event_start" value={draftData.event_start} onChange={onDraftChange} required />
-            <label>Event End</label>
-            <input type="date" name="event_end" value={draftData.event_end} onChange={onDraftChange} required />
-            <input type="number" name="reg_limit" value={draftData.reg_limit} placeholder="Registration Limit" onChange={onDraftChange} required />
-            <input type="number" name="reg_fee" value={draftData.reg_fee} placeholder="Registration Fee (INR)" onChange={onDraftChange} required />
-            <button type="submit">Create Draft</button>
-        </form>
-    </div>
-);
-
-const DashboardView = ({ events, analytics, onManageEvent }) => (
-    <>
-        <h2>Events Carousel</h2>
-        {events.length === 0 ? (
-            <p>No events created yet.</p>
-        ) : (
-            <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }}>
-                {events.map((eventItem) => (
-                    <div
-                        key={eventItem._id}
-                        style={{ minWidth: '260px', border: '1px solid #bbb', borderRadius: '8px', padding: '12px' }}
-                    >
-                        <h3>{eventItem.event_name}</h3>
-                        <p><strong>Type:</strong> {eventItem.event_type}</p>
-                        <p><strong>Status:</strong> {eventItem.status}</p>
-                        <p><strong>Fee:</strong> INR {eventItem.reg_fee}</p>
-                        <button type="button" onClick={onManageEvent}>Manage Event</button>
-                    </div>
-                ))}
-            </div>
-        )}
-
-        <h2 style={{ marginTop: '20px' }}>Completed Events Analytics</h2>
-        <AnalyticsCards analytics={analytics} />
-    </>
-);
-
-const EventsManager = ({
-    events,
-    selectedEventId,
-    onToggleEventSelection,
-    onPublish,
-    onUpdate
-}) => (
-    <div style={{ marginTop: '24px' }}>
-        <h2>Manage My Events</h2>
-        {events.length === 0 && <p>No events created yet.</p>}
-        {events.length > 0 && (
-            <div style={{ display: 'grid', gap: '12px' }}>
-                {events.map((eventItem) => (
-                    <div key={eventItem._id} style={{ border: '1px solid #bbb', borderRadius: '8px', padding: '12px' }}>
-                        <h3>{eventItem.event_name}</h3>
-                        <p><strong>Status:</strong> {eventItem.status}</p>
-                        <p><strong>Type:</strong> {eventItem.event_type}</p>
-                        <p><strong>Description:</strong> {eventItem.event_description}</p>
-                        <p><strong>Form Locked:</strong> {eventItem.form_locked ? 'Yes' : 'No'}</p>
-
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                            {eventItem.status === 'DRAFT' && (
-                                <>
-                                    <button type="button" onClick={() => onToggleEventSelection(eventItem._id)}>
-                                        {selectedEventId === eventItem._id ? 'Hide Form Builder' : 'Define Required Fields'}
-                                    </button>
-                                    <button type="button" onClick={() => onPublish(eventItem._id)}>Publish</button>
-                                </>
-                            )}
-                            {eventItem.status === 'PUBLISHED' && (
-                                <>
-                                    <button type="button" onClick={() => onUpdate(eventItem._id, { event_description: `${eventItem.event_description} (edited)` })}>
-                                        Update Description
-                                    </button>
-                                    <button type="button" onClick={() => onUpdate(eventItem._id, { reg_limit: Number(eventItem.reg_limit) + 10 })}>
-                                        Increase Limit +10
-                                    </button>
-                                    <button type="button" onClick={() => onUpdate(eventItem._id, { registration_closed: true })}>
-                                        Close Registrations
-                                    </button>
-                                </>
-                            )}
-                            {['ONGOING', 'COMPLETED'].includes(eventItem.status) && (
-                                <>
-                                    <button type="button" onClick={() => onUpdate(eventItem._id, { status: 'COMPLETED' })}>Mark Completed</button>
-                                    <button type="button" onClick={() => onUpdate(eventItem._id, { status: 'CLOSED' })}>Mark Closed</button>
-                                </>
-                            )}
-                        </div>
-                    </div>
-                ))}
-            </div>
-        )}
-    </div>
-);
-
-const OngoingView = ({ events }) => (
-    <div style={{ marginTop: '10px' }}>
-        <h2>Ongoing Events</h2>
-        {events.length === 0 ? (
-            <p>No ongoing events right now.</p>
-        ) : (
-            events.map((eventItem) => (
-                <div key={eventItem._id} style={{ border: '1px solid #bbb', borderRadius: '8px', padding: '12px', marginBottom: '8px' }}>
-                    <p><strong>{eventItem.event_name}</strong></p>
-                    <p>Type: {eventItem.event_type}</p>
-                    <p>Status: {eventItem.status}</p>
-                </div>
-            ))
-        )}
-    </div>
-);
-
+const EMPTY_ANALYTICS = { completed_events: 0, total_registrations: 0, total_sales: 0, total_revenue: 0, total_attendance: 0 };
 const OrgDash = () => {
     const { token_verification } = useVerifyRoles();
     const { LogoutLogic } = useLogout();
     const token = localStorage.getItem('token');
-
     const [events, setEvents] = useState([]);
     const [analytics, setAnalytics] = useState(EMPTY_ANALYTICS);
     const [draftData, setDraftData] = useState(DEFAULT_DRAFT);
     const [selectedEventId, setSelectedEventId] = useState('');
-    const [activeView, setActiveView] = useState(DASHBOARD_VIEWS.DASHBOARD);
+    const [detail, setDetail] = useState(null);
+    const [detailFilters, setDetailFilters] = useState({ q: '', status: '' });
+    const [profile, setProfile] = useState({ organization_name: '', category: '', description: '', contact_email: '', phone_number: '', discord_webhook_url: '', email: '' });
+    const [activeView, setActiveView] = useState(VIEWS.DASHBOARD);
     const [loading, setLoading] = useState(true);
-
-    const selectedEvent = useMemo(
-        () => events.find((eventItem) => eventItem._id === selectedEventId) || null,
-        [events, selectedEventId]
-    );
-
-    const ongoingEvents = useMemo(
-        () => events.filter((eventItem) => eventItem.status === 'ONGOING'),
-        [events]
-    );
-
+    const selectedEvent = useMemo(() => events.find((e) => e._id === selectedEventId) || null, [events, selectedEventId]);
+    const ongoingEvents = useMemo(() => events.filter((e) => e.status === 'ONGOING'), [events]);
     const fetchDashboard = useCallback(async () => {
         const data = await EVENT_SERVICE.getOrganizerDashboardSummary(token);
         setEvents(data.events || []);
         setAnalytics(data.analytics || EMPTY_ANALYTICS);
     }, [token]);
-
+    const loadDetail = useCallback(async (eventId, filters = detailFilters) => {
+        const data = await EVENT_SERVICE.getOrganizerEventDetails(token, eventId, filters);
+        setDetail(data);
+        setSelectedEventId(eventId);
+    }, [token, detailFilters]);
+    const loadProfile = useCallback(async () => {
+        const data = await HOME_SERVICE.getOrganizerProfile(token);
+        setProfile((p) => ({ ...p, ...data }));
+    }, [token]);
     useEffect(() => {
         const role = token_verification(token);
-        if (role !== 'OGR') {
-            LogoutLogic();
-            return;
-        }
-
-        fetchDashboard()
-            .catch((error) => alert(error.message))
-            .finally(() => setLoading(false));
-    }, [token, token_verification, LogoutLogic, fetchDashboard]);
-
-    const handleDraftChange = useCallback((event) => {
-        const { name, value, type } = event.target;
-        setDraftData((prev) => ({
-            ...prev,
-            [name]: type === 'number' ? Number(value) : value
-        }));
-    }, []);
-
-    const createDraft = useCallback(async (event) => {
-        event.preventDefault();
-        try {
-            await EVENT_SERVICE.createEventDraft(token, draftData);
-            setDraftData(DEFAULT_DRAFT);
-            await fetchDashboard();
-            alert('Draft created');
-        } catch (error) {
-            alert(error.message);
-        }
+        if (role !== 'OGR') return LogoutLogic();
+        Promise.all([fetchDashboard(), loadProfile()]).catch((e) => alert(e.message)).finally(() => setLoading(false));
+    }, [token, token_verification, LogoutLogic, fetchDashboard, loadProfile]);
+    const createDraft = useCallback(async (e) => {
+        e.preventDefault();
+        try { await EVENT_SERVICE.createEventDraft(token, draftData); setDraftData(DEFAULT_DRAFT); await fetchDashboard(); alert('Draft created'); } catch (err) { alert(err.message); }
     }, [token, draftData, fetchDashboard]);
-
     const updateEvent = useCallback(async (eventId, payload) => {
-        try {
-            await EVENT_SERVICE.updateOrganizerEvent(token, eventId, payload);
-            await fetchDashboard();
-            alert('Event updated');
-        } catch (error) {
-            alert(error.message);
-        }
+        try { await EVENT_SERVICE.updateOrganizerEvent(token, eventId, payload); await fetchDashboard(); alert('Event updated'); } catch (err) { alert(err.message); }
     }, [token, fetchDashboard]);
-
     const publishEvent = useCallback(async (eventId) => {
-        try {
-            await EVENT_SERVICE.publishEvent(token, eventId);
-            await fetchDashboard();
-            alert('Event published');
-        } catch (error) {
-            alert(error.message);
-        }
+        try { await EVENT_SERVICE.publishEvent(token, eventId); await fetchDashboard(); alert('Event published'); } catch (err) { alert(err.message); }
     }, [token, fetchDashboard]);
-
-    const handleToggleEventSelection = useCallback((eventId) => {
-        setSelectedEventId((currentId) => (currentId === eventId ? '' : eventId));
-    }, []);
-
+    const saveProfile = async (e) => {
+        e.preventDefault();
+        try { await HOME_SERVICE.updateOrganizerProfile(token, profile); alert('Profile saved'); await loadProfile(); } catch (err) { alert(err.message); }
+    };
+    const exportCsv = async () => {
+        if (!selectedEventId) return;
+        const params = new URLSearchParams({ format: 'csv', ...detailFilters }).toString();
+        const res = await fetch(`/api/events/organizer/${selectedEventId}?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) return alert('CSV export failed');
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `event-${selectedEventId}-participants.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
     return (
-        <div style={{ padding: '20px' }}>
+        <div className="page">
             <h1>ORGANIZER DASHBOARD</h1>
-            <OrganizerNav activeView={activeView} onViewChange={setActiveView} onLogout={LogoutLogic} />
-
+            <nav className="row">
+                <button type="button" onClick={() => setActiveView(VIEWS.DASHBOARD)}>Dashboard</button>
+                <button type="button" onClick={() => setActiveView(VIEWS.CREATE)}>Create Event</button>
+                <button type="button" onClick={() => setActiveView(VIEWS.PROFILE)}>Profile</button>
+                <button type="button" onClick={() => setActiveView(VIEWS.ONGOING)}>Ongoing Events</button>
+                <button type="button" onClick={LogoutLogic}>Logout</button>
+            </nav>
             {loading && <p>Loading dashboard...</p>}
-
-            {!loading && activeView === DASHBOARD_VIEWS.DASHBOARD && (
-                <DashboardView
-                    events={events}
-                    analytics={analytics}
-                    onManageEvent={() => setActiveView(DASHBOARD_VIEWS.CREATE)}
-                />
-            )}
-
-            {!loading && activeView === DASHBOARD_VIEWS.CREATE && (
+            {!loading && activeView === VIEWS.DASHBOARD && (
                 <>
-                    <DraftForm
-                        draftData={draftData}
-                        onDraftChange={handleDraftChange}
-                        onSubmit={createDraft}
-                    />
-
-                    <EventsManager
-                        events={events}
-                        selectedEventId={selectedEventId}
-                        onToggleEventSelection={handleToggleEventSelection}
-                        onPublish={publishEvent}
-                        onUpdate={updateEvent}
-                    />
-
-                    {selectedEvent && (
-                        <div style={{ marginTop: '20px' }}>
-                            <FormBuilder eventId={selectedEvent._id} token={token} />
+                    <h2>Events</h2>
+                    <div className="row">
+                        {events.map((e) => (
+                            <div key={e._id} className="card">
+                                <h3>{e.event_name}</h3>
+                                <p>Type: {e.event_type} | Status: {e.status}</p>
+                                <p>Fee: INR {e.reg_fee}</p>
+                                <button type="button" onClick={() => setActiveView(VIEWS.CREATE)}>Manage Event</button>
+                            </div>
+                        ))}
+                    </div>
+                    <h2>Analytics</h2>
+                    <div className="row">
+                        <div className="card">Completed: {analytics.completed_events}</div>
+                        <div className="card">Registrations: {analytics.total_registrations}</div>
+                        <div className="card">Sales: {analytics.total_sales}</div>
+                        <div className="card">Revenue: INR {analytics.total_revenue}</div>
+                        <div className="card">Attendance: {analytics.total_attendance}</div>
+                    </div>
+                </>
+            )}
+            {!loading && activeView === VIEWS.CREATE && (
+                <>
+                    <div className="card">
+                        <h2>Create Event Draft</h2>
+                        <form onSubmit={createDraft} className="row">
+                            <input name="event_name" value={draftData.event_name} placeholder="Event Name" onChange={(e) => setDraftData((p) => ({ ...p, event_name: e.target.value }))} required />
+                            <textarea name="event_description" value={draftData.event_description} placeholder="Description" onChange={(e) => setDraftData((p) => ({ ...p, event_description: e.target.value }))} required />
+                            <select name="event_type" value={draftData.event_type} onChange={(e) => setDraftData((p) => ({ ...p, event_type: e.target.value }))}><option value="Normal">Normal</option><option value="Merchandise">Merchandise</option></select>
+                            <select name="eligibility" value={draftData.eligibility} onChange={(e) => setDraftData((p) => ({ ...p, eligibility: e.target.value }))}><option value="ALL">All</option><option value="IIIT">IIIT</option><option value="NON_IIIT">Non-IIIT</option></select>
+                            <input type="date" name="reg_deadline" value={draftData.reg_deadline} onChange={(e) => setDraftData((p) => ({ ...p, reg_deadline: e.target.value }))} required />
+                            <input type="date" name="event_start" value={draftData.event_start} onChange={(e) => setDraftData((p) => ({ ...p, event_start: e.target.value }))} required />
+                            <input type="date" name="event_end" value={draftData.event_end} onChange={(e) => setDraftData((p) => ({ ...p, event_end: e.target.value }))} required />
+                            <input type="number" name="reg_limit" value={draftData.reg_limit} onChange={(e) => setDraftData((p) => ({ ...p, reg_limit: Number(e.target.value) }))} required />
+                            <input type="number" name="reg_fee" value={draftData.reg_fee} onChange={(e) => setDraftData((p) => ({ ...p, reg_fee: Number(e.target.value) }))} required />
+                            <button type="submit">Create Draft</button>
+                        </form>
+                    </div>
+                    {events.map((e) => (
+                        <div key={e._id} className="card">
+                                <h3>{e.event_name}</h3>
+                                <p>Status: {e.status} | Type: {e.event_type}</p>
+                                <p>{e.event_description}</p>
+                                <div className="row">
+                                    <button type="button" onClick={() => loadDetail(e._id)}>View Detail</button>
+                                    {e.status === 'DRAFT' && <>
+                                        <button type="button" onClick={() => setSelectedEventId(selectedEventId === e._id ? '' : e._id)}>{selectedEventId === e._id ? 'Hide Form Builder' : 'Define Required Fields'}</button>
+                                        <button type="button" onClick={() => publishEvent(e._id)}>Publish</button>
+                                </>}
+                                {e.status === 'PUBLISHED' && <>
+                                    <button type="button" onClick={() => updateEvent(e._id, { event_description: `${e.event_description} (edited)` })}>Update Description</button>
+                                    <button type="button" onClick={() => updateEvent(e._id, { reg_limit: Number(e.reg_limit) + 10 })}>Increase Limit +10</button>
+                                    <button type="button" onClick={() => updateEvent(e._id, { registration_closed: true })}>Close Registrations</button>
+                                </>}
+                                {['ONGOING', 'COMPLETED'].includes(e.status) && <>
+                                    <button type="button" onClick={() => updateEvent(e._id, { status: 'COMPLETED' })}>Mark Completed</button>
+                                    <button type="button" onClick={() => updateEvent(e._id, { status: 'CLOSED' })}>Mark Closed</button>
+                                </>}
+                            </div>
+                        </div>
+                    ))}
+                    {selectedEvent && <FormBuilder eventId={selectedEvent._id} token={token} />}
+                    {detail && (
+                        <div className="card">
+                            <h2>Event Detail</h2>
+                            <p><strong>Name:</strong> {detail.event.event_name}</p>
+                            <p><strong>Type:</strong> {detail.event.event_type} | <strong>Status:</strong> {detail.event.status}</p>
+                            <p><strong>Dates:</strong> {new Date(detail.event.event_start).toLocaleString()} - {new Date(detail.event.event_end).toLocaleString()}</p>
+                            <p><strong>Eligibility:</strong> {detail.event.eligibility} | <strong>Pricing:</strong> INR {detail.event.reg_fee}</p>
+                            <p><strong>Registrations/Sales:</strong> {detail.detailAnalytics?.sales ?? detail.registrationsCount} | <strong>Attendance:</strong> {detail.detailAnalytics?.attendance ?? detail.attendanceCount} | <strong>Team completion:</strong> {detail.detailAnalytics?.teamCompletion ?? 0} | <strong>Revenue:</strong> INR {detail.detailAnalytics?.revenue ?? 0}</p>
+                            <div className="row">
+                                <input placeholder="Search participant/email/team" value={detailFilters.q} onChange={(e) => setDetailFilters((f) => ({ ...f, q: e.target.value }))} />
+                                <select value={detailFilters.status} onChange={(e) => setDetailFilters((f) => ({ ...f, status: e.target.value }))}>
+                                    <option value="">All Status</option><option value="REGISTERED">REGISTERED</option><option value="COMPLETED">COMPLETED</option><option value="CANCELLED">CANCELLED</option><option value="REJECTED">REJECTED</option>
+                                </select>
+                                <button type="button" onClick={() => loadDetail(detail.event._id, detailFilters)}>Apply</button>
+                                <button type="button" onClick={exportCsv}>Export CSV</button>
+                            </div>
+                            <div style={{ overflowX: 'auto' }}>
+                                <table><thead><tr><th>Name</th><th>Email</th><th>Reg Date</th><th>Payment</th><th>Team</th><th>Attendance</th></tr></thead><tbody>
+                                    {(detail.participants || []).map((p) => <tr key={p.ticket_id || `${p.email}-${p.regDate}`}><td>{p.name}</td><td>{p.email}</td><td>{p.regDate ? new Date(p.regDate).toLocaleString() : '-'}</td><td>{p.payment}</td><td>{p.team}</td><td>{p.attendance ? 'Yes' : 'No'}</td></tr>)}
+                                </tbody></table>
+                            </div>
                         </div>
                     )}
                 </>
             )}
-
-            {!loading && activeView === DASHBOARD_VIEWS.ONGOING && (
-                <OngoingView events={ongoingEvents} />
+            {!loading && activeView === VIEWS.ONGOING && (
+                <div className="card"><h2>Ongoing Events</h2>{ongoingEvents.length ? ongoingEvents.map((e) => <p key={e._id}>{e.event_name} ({e.event_type}) - {e.status}</p>) : <p>No ongoing events right now.</p>}</div>
             )}
-
-            {!loading && activeView === DASHBOARD_VIEWS.PROFILE && (
-                <div style={{ marginTop: '10px' }}>
+            {!loading && activeView === VIEWS.PROFILE && (
+                <div className="card">
                     <h2>Organizer Profile</h2>
-                    <p>Profile editing section can be added here as part of 10.5.</p>
+                    <form onSubmit={saveProfile} className="row">
+                        <input value={profile.organization_name || ''} placeholder="Name" onChange={(e) => setProfile((p) => ({ ...p, organization_name: e.target.value }))} />
+                        <input value={profile.category || ''} placeholder="Category" onChange={(e) => setProfile((p) => ({ ...p, category: e.target.value }))} />
+                        <input value={profile.contact_email || ''} placeholder="Contact Email" onChange={(e) => setProfile((p) => ({ ...p, contact_email: e.target.value }))} />
+                        <input value={profile.phone_number || ''} placeholder="Contact Number" onChange={(e) => setProfile((p) => ({ ...p, phone_number: e.target.value }))} />
+                        <input value={profile.email || ''} placeholder="Login Email (non-editable)" readOnly />
+                        <input value={profile.discord_webhook_url || ''} placeholder="Discord Webhook URL" onChange={(e) => setProfile((p) => ({ ...p, discord_webhook_url: e.target.value }))} />
+                        <textarea value={profile.description || ''} placeholder="Description" onChange={(e) => setProfile((p) => ({ ...p, description: e.target.value }))} />
+                        <button type="submit">Save Profile</button>
+                    </form>
                 </div>
             )}
         </div>
     );
 };
-
 export default OrgDash;

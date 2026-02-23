@@ -2,14 +2,10 @@ import { useEffect, useState } from 'react';
 import TopNav from '../assets/TopNav';
 import useLogout from '../hooks/useLogout';
 import useVerifyRoles from '../hooks/useVerifyRoles';
-import './pptdash.css';
-
 const historyTabs = ['Normal', 'Merchandise', 'Completed', 'CancelledRejected'];
-
 const PPTDash = () => {
     const { token_verification } = useVerifyRoles();
     const { LogoutLogic } = useLogout();
-
     const [dashboard, setDashboard] = useState({
         upcomingEvents: [],
         participationHistory: {
@@ -22,9 +18,7 @@ const PPTDash = () => {
     });
     const [activeTab, setActiveTab] = useState('Normal');
     const [isLoading, setIsLoading] = useState(true);
-
     const token = localStorage.getItem('token');
-
     const fetchDashboard = async () => {
         const res = await fetch('/api/events/my-dashboard', {
             headers: { Authorization: `Bearer ${token}` }
@@ -35,19 +29,16 @@ const PPTDash = () => {
         }
         setDashboard(data);
     };
-
     useEffect(() => {
         const role = token_verification(token);
         if (role !== 'PPT') {
             LogoutLogic();
             return;
         }
-
         fetchDashboard()
             .catch((error) => alert(error.message))
             .finally(() => setIsLoading(false));
     }, []);
-
     const ticketClick = async (ticketId) => {
         try {
             await navigator.clipboard.writeText(ticketId);
@@ -56,16 +47,12 @@ const PPTDash = () => {
             alert(`Ticket: ${ticketId}`);
         }
     };
-
     const historyList = dashboard.participationHistory?.[activeTab] || [];
-
     return (
         <div className="pptdash-container">
             <TopNav />
             <h1>My Events Dashboard</h1>
-
             {isLoading && <p>Loading dashboard...</p>}
-
             {!isLoading && (
                 <div className="my-events-grid">
                     <div className="my-events-box">
@@ -83,7 +70,6 @@ const PPTDash = () => {
                             ))
                         )}
                     </div>
-
                     <div className="my-events-box">
                         <h2>Participation History</h2>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
@@ -102,7 +88,6 @@ const PPTDash = () => {
                                 </button>
                             ))}
                         </div>
-
                         {historyList.length === 0 ? (
                             <p>No records in this category.</p>
                         ) : (
@@ -115,7 +100,6 @@ const PPTDash = () => {
                             ))
                         )}
                     </div>
-
                     <div className="my-events-box">
                         <h2>Event Records</h2>
                         {dashboard.eventRecords.length === 0 ? (
@@ -140,5 +124,4 @@ const PPTDash = () => {
         </div>
     );
 };
-
 export default PPTDash;

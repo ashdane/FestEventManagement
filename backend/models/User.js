@@ -1,6 +1,5 @@
 const mongoose = require('mongoose')
 const bcrypt = require('bcrypt'); //error-it showed next is not a function because i had not imported bcrypt
-
 const userSchema = new mongoose.Schema({
     role: { type: String, required: true },
     email: {
@@ -18,8 +17,6 @@ const userSchema = new mongoose.Schema({
     },
     password: String
 })
-
-//the below has to be a regular functions as they bind context to the document ( int this case, user instance), while arrow functions inherit this from outside.
 userSchema.pre('save', async function() //`pre` is a feature of the schema. it attaches this to the schema model right before it is compiled. hashing users password before saving to DB
 {
     try{
@@ -32,8 +29,6 @@ userSchema.pre('save', async function() //`pre` is a feature of the schema. it a
         throw error;
     }
 })
-
-// this here binds to the context of the document instance
 userSchema.methods.ValidatePassword = async function(password) // to validate entered password
 {
     try {
@@ -43,5 +38,4 @@ userSchema.methods.ValidatePassword = async function(password) // to validate en
         throw new Error('Incorrect Password!')
     }
 }
-
 module.exports = mongoose.model("User", userSchema)

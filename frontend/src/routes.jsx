@@ -8,7 +8,6 @@ import Profile from './pages/profile'
 import OrganizersAndClubs from './pages/organizers_and_club'
 import BrowseEvents from './pages/browse_events'
 import EventDetails from './pages/event_details'
-
 const RoutingFunction = () => {
     return (
     <Routes>
@@ -24,5 +23,4 @@ const RoutingFunction = () => {
     </Routes>
     )
 }
-
 export default RoutingFunction

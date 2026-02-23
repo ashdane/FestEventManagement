@@ -4,12 +4,10 @@ import TopNav from '../assets/TopNav';
 import useLogout from '../hooks/useLogout';
 import useVerifyRoles from '../hooks/useVerifyRoles';
 import EVENT_SERVICE from '../services/eventServices';
-
 const BrowseEvents = () => {
     const navigate = useNavigate();
     const { token_verification } = useVerifyRoles();
     const { LogoutLogic } = useLogout();
-
     const [events, setEvents] = useState([]);
     const [trending, setTrending] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -22,28 +20,22 @@ const BrowseEvents = () => {
         followedOnly: false,
         trendingOnly: false
     });
-
     const token = localStorage.getItem('token');
-
     const fetchEvents = useCallback(async (query = filters) => {
         const data = await EVENT_SERVICE.browseEvents(token, query);
-
         setEvents(data.events || []);
         setTrending(data.trendingTop5 || []);
     }, [token, filters]);
-
     useEffect(() => {
         const role = token_verification(token);
         if (role !== 'PPT') {
             LogoutLogic();
             return;
         }
-
         fetchEvents()
             .catch((error) => alert(error.message))
             .finally(() => setIsLoading(false));
     }, [token, token_verification, LogoutLogic, fetchEvents]);
-
     const onFilterChange = (e) => {
         const { name, value, type, checked } = e.target;
         setFilters((prev) => ({
@@ -51,7 +43,6 @@ const BrowseEvents = () => {
             [name]: type === 'checkbox' ? checked : value
         }));
     };
-
     const applyFilters = async (e) => {
         e.preventDefault();
         try {
@@ -63,12 +54,10 @@ const BrowseEvents = () => {
             setIsLoading(false);
         }
     };
-
     return (
         <div style={{ padding: '20px' }}>
             <TopNav />
             <h1>Browse Events</h1>
-
             <form onSubmit={applyFilters} style={{ display: 'grid', gap: '10px', maxWidth: '900px', marginBottom: '20px' }}>
                 <input
                     type="text"
@@ -83,18 +72,15 @@ const BrowseEvents = () => {
                         <option value="Normal">Normal</option>
                         <option value="Merchandise">Merchandise</option>
                     </select>
-
                     <select name="eligibility" value={filters.eligibility} onChange={onFilterChange}>
                         <option value="">All Eligibility</option>
                         <option value="ALL">All</option>
                         <option value="IIIT">IIIT</option>
                         <option value="NON_IIIT">Non-IIIT</option>
                     </select>
-
                     <input type="date" name="dateFrom" value={filters.dateFrom} onChange={onFilterChange} />
                     <input type="date" name="dateTo" value={filters.dateTo} onChange={onFilterChange} />
                 </div>
-
                 <div style={{ display: 'flex', gap: '16px' }}>
                     <label>
                         <input type="checkbox" name="followedOnly" checked={filters.followedOnly} onChange={onFilterChange} />
@@ -105,10 +91,8 @@ const BrowseEvents = () => {
                         Trending Only
                     </label>
                 </div>
-
                 <button type="submit" style={{ width: '160px' }}>Apply Filters</button>
             </form>
-
             <div style={{ marginBottom: '20px' }}>
                 <h2>Trending (Top 5 / 24h)</h2>
                 {trending.length === 0 ? (
@@ -123,7 +107,6 @@ const BrowseEvents = () => {
                     </ul>
                 )}
             </div>
-
             <div>
                 <h2>All Events</h2>
                 {isLoading && <p>Loading events...</p>}
@@ -142,5 +125,4 @@ const BrowseEvents = () => {
         </div>
     );
 };
-
 export default BrowseEvents;

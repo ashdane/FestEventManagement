@@ -1,11 +1,9 @@
 const mongoose = require('mongoose');
-
 const EVENT_TYPES = ['Normal', 'Merchandise'];
 const EVENT_TAGS = ['Workshops', 'Talks', 'Competitions', 'Media', 'Technical', 'Cultural', 'Literary'];
 const ELIGIBILITY_TYPES = ['IIIT', 'NON_IIIT', 'ALL'];
 const EVENT_STATUS = ['DRAFT', 'PUBLISHED', 'ONGOING', 'COMPLETED', 'CLOSED'];
 const REG_FIELD_TYPES = ['TEXT', 'NUMBER', 'DROPDOWN', 'CHECKBOX', 'FILE'];
-
 const RegistrationFieldSchema = new mongoose.Schema(
     {
         fieldType: { type: String, required: true, enum: REG_FIELD_TYPES },
@@ -15,7 +13,6 @@ const RegistrationFieldSchema = new mongoose.Schema(
     },
     { _id: true }
 );
-
 const EventSchema = new mongoose.Schema(
     {
         event_name: {
@@ -85,19 +82,15 @@ const EventSchema = new mongoose.Schema(
     },
     { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );
-
 EventSchema.virtual('effective_status').get(function() {
     if (['DRAFT', 'COMPLETED', 'CLOSED'].includes(this.status)) return this.status;
-    
     const now = Date.now();
     const start = new Date(this.event_start).getTime();
     const end = new Date(this.event_end).getTime();
-
     if (now > end) return 'CLOSED';
     if (now >= start) return 'ONGOING';
     return this.status;
 });
-
 EventSchema.statics.getStats = async function(eventId) {
     const stats = await mongoose.model('Participant').aggregate([
         { $unwind: '$registrations' },
@@ -119,8 +112,6 @@ EventSchema.statics.getStats = async function(eventId) {
         attendanceCount: stats[0]?.attendance || 0
     };
 };
-
-// Replaces your old getTrendingMap helper
 EventSchema.statics.getTrendingMap = async function() {
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const grouped = await mongoose.model('Participant').aggregate([
@@ -130,12 +121,9 @@ EventSchema.statics.getTrendingMap = async function() {
         { $sort: { count: -1 } },
         { $limit: 5 }
     ]);
-
-    // Format as a simple ID-to-Count map for easy lookup
     return grouped.reduce((map, item) => {
         map[String(item._id)] = item.count;
         return map;
     }, {});
 };
-
 module.exports = mongoose.model('Events', EventSchema);

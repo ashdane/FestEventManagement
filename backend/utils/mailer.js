@@ -1,6 +1,5 @@
 const nodemailer = require('nodemailer');
 const QRCode = require('qrcode');
-
 const transporter = nodemailer.createTransport({
     service: 'gmail', // Or use SendGrid/Mailgun
     auth: {
@@ -8,12 +7,9 @@ const transporter = nodemailer.createTransport({
         pass: process.env.EMAIL_PASS
     }
 });
-
 exports.sendTicketEmail = async (userEmail, eventName, ticket) => {
     try {
-        // Generate QR code based on the unique Ticket ID
         const qrCodeDataUrl = await QRCode.toDataURL(ticket.ticketId);
-
         const mailOptions = {
             from: process.env.EMAIL_USER,
             to: userEmail,
@@ -32,7 +28,6 @@ exports.sendTicketEmail = async (userEmail, eventName, ticket) => {
                 }
             ]
         };
-
         await transporter.sendMail(mailOptions);
     } catch (error) {
         console.error('Failed to send ticket email:', error);

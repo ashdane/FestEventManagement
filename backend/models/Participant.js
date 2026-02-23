@@ -1,6 +1,5 @@
 const User = require('./User');
 const mongoose = require('mongoose')
-
 const RegistrationSchema = new mongoose.Schema(
     {
         event_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Events', required: true },
@@ -15,7 +14,6 @@ const RegistrationSchema = new mongoose.Schema(
     },
     { _id: false }
 );
-
 const ParticipantSchema = new mongoose.Schema({
     participant_type: String,
     first_name: String,
@@ -34,7 +32,4 @@ const ParticipantSchema = new mongoose.Schema({
         default: []
     }
 })
-
 module.exports = User.discriminator('Participant', ParticipantSchema); 
-// allows for the storing of participants in the main mongodb collection (users)
-//  using a hidden field __t to differentiate

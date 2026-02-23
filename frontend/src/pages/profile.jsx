@@ -4,7 +4,6 @@ import useLogout from '../hooks/useLogout';
 import useVerifyRoles from '../hooks/useVerifyRoles';
 import HOME_SERVICE from '../services/homeServices';
 import PARTICIPANT_SERVICE from '../services/participantServices';
-
 const defaultProfile = {
     first_name: '',
     last_name: '',
@@ -15,7 +14,6 @@ const defaultProfile = {
     areas_of_interests: [],
     orgs_of_interests: []
 };
-
 const Profile = () => {
     const [profile, setProfile] = useState(defaultProfile);
     const [orgOptions, setOrgOptions] = useState([]);
@@ -26,9 +24,7 @@ const Profile = () => {
     });
     const { token_verification } = useVerifyRoles();
     const { LogoutLogic } = useLogout();
-
     const token = localStorage.getItem('token');
-
     const fetchProfile = useCallback(async () => {
         const data = await PARTICIPANT_SERVICE.getMyProfile(token);
         setProfile({
@@ -37,35 +33,29 @@ const Profile = () => {
             orgs_of_interests: (data.orgs_of_interests || []).map((org) => org._id || org)
         });
     }, [token]);
-
     const fetchOrgs = useCallback(async () => {
         const data = await HOME_SERVICE.getOrganizers();
         setOrgOptions(data);
     }, []);
-
     useEffect(() => {
         const role = token_verification(token);
         if (role !== 'PPT') {
             LogoutLogic();
             return;
         }
-
         Promise.all([fetchProfile(), fetchOrgs()]).catch((error) => {
             console.error(error.message);
             alert('Failed to load profile data');
         });
     }, [token, token_verification, LogoutLogic, fetchProfile, fetchOrgs]);
-
     const handleInput = (e) => {
         const { name, value } = e.target;
         setProfile((prev) => ({ ...prev, [name]: value }));
     };
-
     const handleMultiSelect = (e, key) => {
         const values = Array.from(e.target.selectedOptions, (option) => option.value);
         setProfile((prev) => ({ ...prev, [key]: values }));
     };
-
     const saveProfile = async (e) => {
         e.preventDefault();
         try {
@@ -82,12 +72,10 @@ const Profile = () => {
             alert(error.message || 'Profile update failed');
         }
     };
-
     const handlePasswordInput = (e) => {
         const { name, value } = e.target;
         setPasswordForm((prev) => ({ ...prev, [name]: value }));
     };
-
     const changePassword = async (e) => {
         e.preventDefault();
         try {
@@ -98,12 +86,10 @@ const Profile = () => {
             alert(error.message || 'Password change failed');
         }
     };
-
     return (
         <div style={{ padding: '20px' }}>
             <TopNav />
             <h1>Profile</h1>
-
             <form onSubmit={saveProfile} style={{ display: 'grid', gap: '10px', maxWidth: '500px' }}>
                 <input name="first_name" value={profile.first_name} onChange={handleInput} placeholder="First Name" />
                 <input name="last_name" value={profile.last_name} onChange={handleInput} placeholder="Last Name" />
@@ -111,7 +97,6 @@ const Profile = () => {
                 <input name="organization_name" value={profile.organization_name} onChange={handleInput} placeholder="College / Organization" />
                 <input value={profile.email} readOnly placeholder="Email" />
                 <input value={profile.participant_type} readOnly placeholder="Participant Type" />
-
                 <label>Selected Interests</label>
                 <select multiple value={profile.areas_of_interests} onChange={(e) => handleMultiSelect(e, 'areas_of_interests')}>
                     <option value="TECH_EVENTS">Tech</option>
@@ -119,17 +104,14 @@ const Profile = () => {
                     <option value="ENTERTAINMENT">Entertainment</option>
                     <option value="NETWORKING">Networking</option>
                 </select>
-
                 <label>Followed Clubs</label>
                 <select multiple value={profile.orgs_of_interests} onChange={(e) => handleMultiSelect(e, 'orgs_of_interests')}>
                     {orgOptions.map((org) => (
                         <option key={org._id} value={org._id}>{org.organization_name}</option>
                     ))}
                 </select>
-
                 <button type="submit">Save Profile</button>
             </form>
-
             <h2 style={{ marginTop: '24px' }}>Security Settings</h2>
             <form onSubmit={changePassword} style={{ display: 'grid', gap: '10px', maxWidth: '500px' }}>
                 <input type="password" name="oldPassword" value={passwordForm.oldPassword} onChange={handlePasswordInput} placeholder="Current Password" />
@@ -140,5 +122,4 @@ const Profile = () => {
         </div>
     );
 };
-
 export default Profile;

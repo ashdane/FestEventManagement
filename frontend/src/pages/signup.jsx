@@ -68,6 +68,4 @@ const Signup = () => {
             </form>
         </div>)
 }
-
 export default Signup // when doing this im telling external files that this page is the login component
-//export const Login //If i did this i would be exporting just a component called Login form this file

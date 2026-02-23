@@ -1,5 +1,4 @@
 const User = require('../models/User')
-
 const createAdmin = async () => {
     const admin_check = await User.findOne({'role': 'ADMTR'}) //await only works in async function; cant be standalone
     if(!admin_check)
@@ -12,5 +11,4 @@ const createAdmin = async () => {
         await first_user.save()
     }
 }
-
 module.exports = { createAdmin }

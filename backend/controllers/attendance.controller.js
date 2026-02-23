@@ -1,33 +1,21 @@
 const Ticket = require('../models/Ticket');
 const Events = require('../models/Events');
-
-// PUT /api/attendance/scan
-// Restricted to Organizers
 exports.scanTicket = async (req, res) => {
     try {
         const { ticketId } = req.body; // The string decoded from the QR code
-
-        // 1. Find ticket and populate event to verify ownership
         const ticket = await Ticket.findOne({ ticketId }).populate('eventId participantId');
-        
         if (!ticket) {
             return res.status(404).json({ error: 'Invalid Ticket: Not found in system' });
         }
-
-        // 2. Security: Ensure the person scanning is the actual organizer of this event
         const ownerId = ticket.eventId.org_id || ticket.eventId.organizerId;
         if (!ownerId || String(ownerId) !== req.user.id) {
             return res.status(403).json({ error: 'Unauthorized: You do not own this event' });
         }
-
-        // 3. Validation: Only "Successful" (paid/registered) tickets can be scanned
         if (ticket.status !== 'Successful') {
             return res.status(400).json({ 
                 error: `Cannot check-in. Ticket status is: ${ticket.status}` 
             });
         }
-
-        // 4. Prevention of Duplicates (Spec Requirement)
         const attendance = ticket.attendance || { scanned: false, scannedAt: null };
         if (attendance.scanned) {
             return res.status(409).json({ 
@@ -35,34 +23,25 @@ exports.scanTicket = async (req, res) => {
                 scannedAt: attendance.scannedAt 
             });
         }
-
-        // 5. Update Attendance
         if (!ticket.attendance) ticket.attendance = {};
         ticket.attendance.scanned = true;
         ticket.attendance.scannedAt = new Date();
         await ticket.save();
-
         res.status(200).json({
             message: 'Check-in Successful',
             participantName: `${ticket.participantId.first_name || ticket.participantId.firstName || ''} ${ticket.participantId.last_name || ticket.participantId.lastName || ''}`.trim(),
             eventName: ticket.eventId.event_name || ticket.eventId.eventName || 'Event',
             timestamp: ticket.attendance.scannedAt
         });
-
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 };
-
-// GET /api/attendance/stats/:eventId
-// For the live dashboard (Spec requirement)
 exports.getAttendanceStats = async (req, res) => {
     try {
         const { eventId } = req.params;
-
         const totalTickets = await Ticket.countDocuments({ eventId, status: 'Successful' });
         const scannedTickets = await Ticket.countDocuments({ eventId, 'attendance.scanned': true });
-
         res.status(200).json({
             totalRegistered: totalTickets,
             checkedIn: scannedTickets,

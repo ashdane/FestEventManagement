@@ -3,14 +3,9 @@ const User = require('../models/User')
 const Organizer = require('../models/Organizer');
 const jwt = require('jsonwebtoken')
 require('dotenv').config()
-//participant: PPT, organizer: OGR, administrator: ADMTR
-//IIIT Student:  ITST, Non IIIT Student: NITST
 const make_token = (id, role, participant_type) => { //helper function
     return jwt.sign({ id, role, participant_type }, process.env.JWT_SECRET, { expiresIn: '3d' })
 }
-
-
-//CREATE NEW PARTICIPANT
 const signup = async (req, res) => {
     try{
         const { usertype, participant_type, first_name, last_name, email, organization_name, phone_number, password } = req.body
@@ -29,8 +24,6 @@ const signup = async (req, res) => {
         return res.status(400).json({ message: "Signup works - Backend", error: err.message }); //400: Bad Request
     }
 }
-
-//UNIVERSAL LOGIN
 const login = async (req, res) => {
     try {
         const { email, password } = req.body
@@ -51,12 +44,10 @@ const login = async (req, res) => {
              usertype: role, 
              id: user._id
         })
-
     }
     catch (error) { //error is a js object
         console.error('Login failed:', error.message) // streams to stderr
         res.status(500).json({ error: error.message, message: "Internal Server Error" }); // 500: Internal Server Error
     }
 }
-
 module.exports = { signup, login }

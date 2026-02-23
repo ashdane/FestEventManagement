@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import TopNav from '../assets/TopNav';
 import useLogout from '../hooks/useLogout';
 import useVerifyRoles from '../hooks/useVerifyRoles';
-
 const OrganizersAndClubs = () => {
     const [organizers, setOrganizers] = useState([]);
     const [selectedOrganizerId, setSelectedOrganizerId] = useState('');
@@ -10,9 +9,7 @@ const OrganizersAndClubs = () => {
     const [isLoading, setIsLoading] = useState(true);
     const { token_verification } = useVerifyRoles();
     const { LogoutLogic } = useLogout();
-
     const token = localStorage.getItem('token');
-
     const fetchOrganizers = async () => {
         const res = await fetch('/api/participants/organizers', {
             headers: { Authorization: `Bearer ${token}` }
@@ -23,7 +20,6 @@ const OrganizersAndClubs = () => {
         }
         setOrganizers(data);
     };
-
     const fetchOrganizerDetails = async (organizerId) => {
         const res = await fetch(`/api/participants/organizers/${organizerId}`, {
             headers: { Authorization: `Bearer ${token}` }
@@ -35,19 +31,16 @@ const OrganizersAndClubs = () => {
         setSelectedOrganizerDetails(data);
         setSelectedOrganizerId(organizerId);
     };
-
     useEffect(() => {
         const role = token_verification(token);
         if (role !== 'PPT') {
             LogoutLogic();
             return;
         }
-
         fetchOrganizers()
             .catch((error) => alert(error.message))
             .finally(() => setIsLoading(false));
     }, []);
-
     const handleFollowAction = async (organizerId, isCurrentlyFollowed) => {
         const action = isCurrentlyFollowed ? 'unfollow' : 'follow';
         const res = await fetch(`/api/participants/organizers/${organizerId}/${action}`, {
@@ -59,14 +52,12 @@ const OrganizersAndClubs = () => {
             alert(data.error || 'Action failed');
             return;
         }
-
         setOrganizers((prev) =>
             prev.map((org) =>
                 org._id === organizerId ? { ...org, isFollowed: !isCurrentlyFollowed } : org
             )
         );
     };
-
     const renderEvents = (events) => {
         if (!events || events.length === 0) return <p>None</p>;
         return (
@@ -79,12 +70,10 @@ const OrganizersAndClubs = () => {
             </ul>
         );
     };
-
     return (
         <div style={{ padding: '20px' }}>
             <TopNav />
             <h1>Clubs / Organizers</h1>
-
             <div
                 style={{
                     maxHeight: '70vh',
@@ -96,7 +85,6 @@ const OrganizersAndClubs = () => {
             >
                 {isLoading && <p>Loading organizers...</p>}
                 {!isLoading && organizers.length === 0 && <p>No organizers found.</p>}
-
                 {!isLoading &&
                     organizers.map((org) => (
                         <div
@@ -119,7 +107,6 @@ const OrganizersAndClubs = () => {
                                     View Details
                                 </button>
                             </div>
-
                             {selectedOrganizerId === org._id && selectedOrganizerDetails && (
                                 <div style={{ marginTop: '12px', padding: '10px', background: '#f7f7f7' }}>
                                     <p><strong>Name:</strong> {selectedOrganizerDetails.organizer.organization_name}</p>
@@ -138,5 +125,4 @@ const OrganizersAndClubs = () => {
         </div>
     );
 };
-
 export default OrganizersAndClubs;
