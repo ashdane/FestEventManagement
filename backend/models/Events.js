@@ -98,7 +98,7 @@ EventSchema.virtual('effective_status').get(function() {
     return this.status;
 });
 
-eventSchema.statics.getStats = async function(eventId) {
+EventSchema.statics.getStats = async function(eventId) {
     const stats = await mongoose.model('Participant').aggregate([
         { $unwind: '$registrations' },
         { $match: { 'registrations.event_id': new mongoose.Types.ObjectId(eventId) } },
@@ -121,7 +121,7 @@ eventSchema.statics.getStats = async function(eventId) {
 };
 
 // Replaces your old getTrendingMap helper
-eventSchema.statics.getTrendingMap = async function() {
+EventSchema.statics.getTrendingMap = async function() {
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const grouped = await mongoose.model('Participant').aggregate([
         { $unwind: '$registrations' },
