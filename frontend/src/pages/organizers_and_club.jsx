@@ -96,7 +96,7 @@ const OrganizersAndClubs = () => {
                                 marginBottom: '12px'
                             }}
                         >
-                            <h3>{org.organization_name}</h3>
+                            <h3>{org.org_name}</h3>
                             <p><strong>Category:</strong> {org.category || 'Not set'}</p>
                             <p><strong>Description:</strong> {org.description || 'No description'}</p>
                             <div style={{ display: 'flex', gap: '10px' }}>
@@ -109,7 +109,7 @@ const OrganizersAndClubs = () => {
                             </div>
                             {selectedOrganizerId === org._id && selectedOrganizerDetails && (
                                 <div style={{ marginTop: '12px', padding: '10px', background: '#f7f7f7' }}>
-                                    <p><strong>Name:</strong> {selectedOrganizerDetails.organizer.organization_name}</p>
+                                    <p><strong>Name:</strong> {selectedOrganizerDetails.organizer.org_name}</p>
                                     <p><strong>Category:</strong> {selectedOrganizerDetails.organizer.category || 'Not set'}</p>
                                     <p><strong>Description:</strong> {selectedOrganizerDetails.organizer.description || 'No description'}</p>
                                     <p><strong>Contact Email:</strong> {selectedOrganizerDetails.organizer.email}</p>

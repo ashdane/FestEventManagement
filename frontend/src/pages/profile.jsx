@@ -9,7 +9,7 @@ const defaultProfile = {
     last_name: '',
     email: '',
     participant_type: '',
-    organization_name: '',
+    org_name: '',
     phone_number: '',
     areas_of_interests: [],
     orgs_of_interests: []
@@ -63,7 +63,7 @@ const Profile = () => {
                 first_name: profile.first_name,
                 last_name: profile.last_name,
                 phone_number: profile.phone_number,
-                organization_name: profile.organization_name,
+                org_name: profile.org_name,
                 areas_of_interests: profile.areas_of_interests,
                 orgs_of_interests: profile.orgs_of_interests
             });
@@ -94,7 +94,7 @@ const Profile = () => {
                 <input name="first_name" value={profile.first_name} onChange={handleInput} placeholder="First Name" />
                 <input name="last_name" value={profile.last_name} onChange={handleInput} placeholder="Last Name" />
                 <input name="phone_number" value={profile.phone_number} onChange={handleInput} placeholder="Contact Number" />
-                <input name="organization_name" value={profile.organization_name} onChange={handleInput} placeholder="College / Organization" />
+                <input name="org_name" value={profile.org_name} onChange={handleInput} placeholder="College / Organization" />
                 <input value={profile.email} readOnly placeholder="Email" />
                 <input value={profile.participant_type} readOnly placeholder="Participant Type" />
                 <label>Selected Interests</label>
@@ -107,7 +107,7 @@ const Profile = () => {
                 <label>Followed Clubs</label>
                 <select multiple value={profile.orgs_of_interests} onChange={(e) => handleMultiSelect(e, 'orgs_of_interests')}>
                     {orgOptions.map((org) => (
-                        <option key={org._id} value={org._id}>{org.organization_name}</option>
+                        <option key={org._id} value={org._id}>{org.org_name}</option>
                     ))}
                 </select>
                 <button type="submit">Save Profile</button>

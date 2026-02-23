@@ -1,36 +1,35 @@
 const nodemailer = require('nodemailer');
 const QRCode = require('qrcode');
-const transporter = nodemailer.createTransport({
-    service: 'gmail', // Or use SendGrid/Mailgun
+const transporter = nodemailer.createTransport({ service: 'gmail', 
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
     }
 });
-exports.sendTicketEmail = async (userEmail, eventName, ticket) => {
+
+const sendTicketMail = async (userEmail, eventName, ticket) => {
     try {
-        const qrCodeDataUrl = await QRCode.toDataURL(ticket.ticketId);
-        const mailOptions = {
+        const qrCode = await QRCode.toDataURL(ticket.ticketId);
+        const mailContent = {
             from: process.env.EMAIL_USER,
             to: userEmail,
-            subject: `Your Ticket for ${eventName}`,
+            subject: `Welcome to Felicity! Here is your ticket for ${eventName}`,
             html: `
-                <h2>Registration Confirmed</h2>
                 <p>You are officially registered for <strong>${eventName}</strong>.</p>
-                <p><strong>Ticket ID:</strong> ${ticket.ticketId}</p>
-                <p>Please present the QR code attached below at the venue.</p>
+                <p><strong>Your ticket ID:</strong> ${ticket.ticketId}</p>
             `,
             attachments: [
                 {
                     filename: 'ticket-qr.png',
-                    content: qrCodeDataUrl.split("base64,")[1],
+                    content: qrCode.split('base64,')[1],
                     encoding: 'base64'
                 }
             ]
         };
-        await transporter.sendMail(mailOptions);
+        await transporter.sendMail(mailContent);
     } catch (error) {
-        console.error('Failed to send ticket email:', error);
-        throw new Error('Email dispatch failed');
+        throw new Error('Email failed to be sent');
     }
 };
+
+module.exports = { sendTicketMail }

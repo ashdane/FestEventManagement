@@ -4,13 +4,16 @@ const {
     manageOrganizerEvents,
     manageEventForm,
     getEventDiscovery,
-    handleRegistration
+    handleRegistration,
+    getMyCalendarLinks,
+    exportCalendarIcs
 } = require('../controllers/event.controller');
 const { extractUserType, isOrganizer, isParticipant } = require('../middleware/auth.middleware');
 const router = express.Router();
-const { purchaseMerchandise, approvePayment, rejectPayment } = require('../controllers/merchandise.controller');
+const { buyMerch, approvePayment, rejectPayment } = require('../controllers/merchandise.controller');
 const upload = require('../middleware/upload.middleware');
-const { scanTicket, getAttendanceStats } = require('../controllers/attendance.controller');
+const { scanTicket, getAttendanceStats, getAttendanceDashboard, exportAttendanceCsv, manualOverrideAttendance, getAttendanceAudit } = require('../controllers/attendance.controller');
+const { getForum, postMessage, reactMessage, pinMessage, deleteMessage, getNotifications } = require('../controllers/forum.controller');
 router.post('/', extractUserType, isOrganizer, manageEventLifecycle);
 router.get('/organizer/my-events', extractUserType, isOrganizer, manageOrganizerEvents);
 router.get('/organizer/dashboard-summary', extractUserType, isOrganizer, manageOrganizerEvents);
@@ -21,6 +24,14 @@ router.get('/organizer/:eventId/form', extractUserType, isOrganizer, manageEvent
 router.put('/organizer/:eventId/form', extractUserType, isOrganizer, manageEventForm);
 router.get('/', extractUserType, isParticipant, getEventDiscovery);
 router.get('/my-dashboard', extractUserType, isParticipant, handleRegistration);
+router.get('/calendar/links', extractUserType, isParticipant, getMyCalendarLinks);
+router.get('/calendar/export.ics', extractUserType, isParticipant, exportCalendarIcs);
+router.get('/:eventId/forum', extractUserType, getForum);
+router.post('/:eventId/forum', extractUserType, postMessage);
+router.post('/:eventId/forum/:messageId/react', extractUserType, reactMessage);
+router.patch('/:eventId/forum/:messageId/pin', extractUserType, isOrganizer, pinMessage);
+router.delete('/:eventId/forum/:messageId', extractUserType, isOrganizer, deleteMessage);
+router.get('/:eventId/forum/notifications', extractUserType, getNotifications);
 router.get('/:eventId', extractUserType, isParticipant, getEventDiscovery);
 router.post('/:eventId/register', extractUserType, isParticipant, handleRegistration);
 router.post(
@@ -28,7 +39,7 @@ router.post(
     extractUserType, 
     isParticipant, 
     upload.single('paymentProof'), // Intercepts the image, uploads to Cloudinary, attaches req.file.path
-    purchaseMerchandise
+    buyMerch
 );
 router.put(
     '/merchandise/approve/:ticketId', 
@@ -54,4 +65,8 @@ router.get(
     isOrganizer, 
     getAttendanceStats
 );
+router.get('/attendance/dashboard/:eventId', extractUserType, isOrganizer, getAttendanceDashboard);
+router.get('/attendance/export/:eventId', extractUserType, isOrganizer, exportAttendanceCsv);
+router.put('/attendance/manual-override', extractUserType, isOrganizer, manualOverrideAttendance);
+router.get('/attendance/audit/:eventId', extractUserType, isOrganizer, getAttendanceAudit);
 module.exports = router;

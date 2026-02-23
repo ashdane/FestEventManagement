@@ -4,9 +4,9 @@ import AUTH from "../services/authServices"
 const Signup = () => {
         const navigate = useNavigate()
         const [ state, ChangeState ] = formStates({"usertype": "PPT", "participant_type": "", "first_name": "", "last_name": "", 
-            "organization_name": "", "email": "", "phone_number": "", "password": ""
+            "org_name": "", "email": "", "phone_number": "", "password": ""
         })
-        const { usertype, participant_type, first_name, last_name, organization_name, email, phone_number, password } = state
+        const { usertype, participant_type, first_name, last_name, org_name, email, phone_number, password } = state
         const submitfunc = async (e) => {
             e.preventDefault()
             const response  = await AUTH.SignupAPI(state)
@@ -46,7 +46,7 @@ const Signup = () => {
                     </div>
                     <div>
                         <label>Organization Name</label>
-                        <input type="text" name = "organization_name" value = { organization_name } onChange = { ChangeState }/>
+                        <input type="text" name = "org_name" value = { org_name } onChange = { ChangeState }/>
                     </div>
                     <div>
                         <label>E-Mail</label>

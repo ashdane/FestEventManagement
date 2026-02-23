@@ -5,7 +5,7 @@ const editableFields = [
     'first_name',
     'last_name',
     'phone_number',
-    'organization_name',
+    'org_name',
     'areas_of_interests',
     'orgs_of_interests'
 ];
@@ -14,9 +14,9 @@ const getMyProfile = async (req, res) => {
     try {
         const participant = await Participant.findById(req.user.id)
             .select(
-                'first_name last_name email participant_type organization_name phone_number areas_of_interests orgs_of_interests'
+                'first_name last_name email participant_type org_name phone_number areas_of_interests orgs_of_interests'
             )
-            .populate('orgs_of_interests', 'organization_name');
+            .populate('orgs_of_interests', 'org_name');
         if (!participant) return res.status(404).json({ error: 'Participant not found' });
         return res.status(200).json(participant);
     } catch (error) {
@@ -40,7 +40,7 @@ const updateMyProfile = async (req, res) => {
             { new: true, runValidators: true }
         )
             .select('-password')
-            .populate('orgs_of_interests', 'organization_name');
+            .populate('orgs_of_interests', 'org_name');
         if (!participant) return res.status(404).json({ error: 'Participant not found' });
         return res.status(200).json({ message: 'Profile updated', participant });
     } catch (error) {
@@ -101,7 +101,7 @@ const getOrganizersList = async (req, res) => {
         if (!participant) return res.status(404).json({ error: 'Participant not found' });
         const followedSet = new Set((participant.orgs_of_interests || []).map((id) => String(id)));
         const organizers = await Organizer.find({ __t: 'Organizer' }).select(
-            'organization_name category description'
+            'org_name category description'
         );
         return res.status(200).json(
             organizers.map((org) => ({
@@ -118,7 +118,7 @@ const getOrganizerDetails = async (req, res) => {
         const { organizerId } = req.params;
         const [participant, organizer] = await Promise.all([
             Participant.findById(req.user.id).select('orgs_of_interests'),
-            Organizer.findById(organizerId).select('organization_name category description email')
+            Organizer.findById(organizerId).select('org_name category description email')
         ]);
         if (!participant) return res.status(404).json({ error: 'Participant not found' });
         if (!organizer) return res.status(404).json({ error: 'Organizer not found' });

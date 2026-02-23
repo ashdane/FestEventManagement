@@ -1,1 +1,7 @@
-node_modulesbackend/package-lock.jsonfrontend/package-lock.jsonbackend/uploads/
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+backend/uploads/
+backend/.env
+frontend/.env
+*.log

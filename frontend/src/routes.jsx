@@ -8,6 +8,7 @@ import Profile from './pages/profile'
 import OrganizersAndClubs from './pages/organizers_and_club'
 import BrowseEvents from './pages/browse_events'
 import EventDetails from './pages/event_details'
+import AttendanceScan from './pages/attendance_scan'
 const RoutingFunction = () => {
     return (
     <Routes>
@@ -20,6 +21,7 @@ const RoutingFunction = () => {
         <Route path = "/organizers_and_clubs" element = {<OrganizersAndClubs />} />
         <Route path = "/browse_events" element = {<BrowseEvents />} />
         <Route path = "/events/:eventId" element = {<EventDetails />} />
+        <Route path = "/attendance_scan" element = {<AttendanceScan />} />
     </Routes>
     )
 }

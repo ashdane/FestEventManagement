@@ -29,7 +29,7 @@ const ticketSchema = new mongoose.Schema({
     merchandiseDetails: {
         size: String,
         color: String,
-        quantity: Number,
+        qty: Number,
         paymentProofUrl: String // Cloudinary URL
     },
     attendance: {

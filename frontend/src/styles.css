@@ -4,12 +4,12 @@ body{margin:0;background:#f7f7f7}
 a{color:inherit}
 h1,h2,h3{margin:0 0 10px}
 button,input,select,textarea{font:inherit}
-button{cursor:pointer;border:1px solid #bbb;background:#fff;padding:8px 10px;border-radius:6px}
-input,select,textarea{border:1px solid #ccc;padding:8px;border-radius:6px;background:#fff}
+button{cursor:pointer;border:1px solid #bbb;background:#fff;padding:8px 10px;border-radius:0px;margin-bottom: 15px;}
+input,select,textarea{border:1px solid #ccc;padding:8px;border-radius:0px;background:#fff;margin-bottom: 15px;}
 .page{padding:20px;max-width:1100px;margin:0 auto}
-.card{border:1px solid #ccc;border-radius:8px;padding:12px;background:#fff}
+.card{border:1px solid #ccc;border-radius:0px;padding:12px;background:#fff}
 .row{display:flex;gap:10px;flex-wrap:wrap}
-.topnav{background:#1f2937;color:#fff;display:flex;align-items:center;padding:0 12px;border-radius:8px;margin-bottom:14px}
+.topnav{background:#1f2937;color:#fff;display:flex;align-items:center;padding:0 12px;border-radius:0px;margin-bottom:14px}
 .topnav a,.topnav button{padding:12px 14px;border:none;background:transparent;color:#fff;text-decoration:none}
 .topnav a.active{background:#2563eb}
 .topnav-logout{margin-left:auto}

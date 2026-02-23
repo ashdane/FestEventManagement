@@ -15,7 +15,8 @@ const userSchema = new mongoose.Schema({
             message: 'Your email address is invalid.'
         }
     },
-    password: String
+    password: String,
+    enabled: { type: Boolean, default: true }
 })
 userSchema.pre('save', async function() //`pre` is a feature of the schema. it attaches this to the schema model right before it is compiled. hashing users password before saving to DB
 {

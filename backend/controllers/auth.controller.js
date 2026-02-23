@@ -8,10 +8,10 @@ const make_token = (id, role, participant_type) => { //helper function
 }
 const signup = async (req, res) => {
     try{
-        const { usertype, participant_type, first_name, last_name, email, organization_name, phone_number, password } = req.body
+        const { usertype, participant_type, first_name, last_name, email, org_name, phone_number, password } = req.body
         if(participant_type == 'ITST' && !email.endsWith('@students.iiit.ac.in') && !email.endsWith('@research.iiit.ac.in'))
             return res.status(400).json({ error: 'Please enter your student institute ID!'}) //400: Bad Request // you have to return it, without returning, it keeps going on
-        const participant = new Participant({ role: 'PPT', participant_type, first_name, last_name, email, organization_name, phone_number, password })
+        const participant = new Participant({ role: 'PPT', participant_type, first_name, last_name, email, org_name, phone_number, password })
         await participant.save()
         const participant_token = make_token(participant._id, participant.role, participant.participant_type)
         res.status(201).json({
@@ -32,6 +32,8 @@ const login = async (req, res) => {
             console.log("User not found");
             return res.status(404).json({ error: `User not found` }) //404: Not Found
         }
+        if (user.enabled === false)
+            return res.status(403).json({ error: 'Account disabled. Contact admin.' })
         const match = await user.ValidatePassword(password)
         if(!match)
             return res.status(401).json({ error: "Incorrect Password!" }) //402: Unauthorized

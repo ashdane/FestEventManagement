@@ -18,7 +18,7 @@ const ParticipantSchema = new mongoose.Schema({
     participant_type: String,
     first_name: String,
     last_name: String,
-    organization_name: String,
+    org_name: String,
     phone_number: String,
     areas_of_interests:
         {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import TopNav from '../assets/TopNav';
 import useLogout from '../hooks/useLogout';
 import useVerifyRoles from '../hooks/useVerifyRoles';
+import EVENT_SERVICE from '../services/eventServices';
 const historyTabs = ['Normal', 'Merchandise', 'Completed', 'CancelledRejected'];
 const PPTDash = () => {
     const { token_verification } = useVerifyRoles();
@@ -18,6 +19,9 @@ const PPTDash = () => {
     });
     const [activeTab, setActiveTab] = useState('Normal');
     const [isLoading, setIsLoading] = useState(true);
+    const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
+    const [reminderMinutes, setReminderMinutes] = useState(30);
+    const [calendarLinks, setCalendarLinks] = useState([]);
     const token = localStorage.getItem('token');
     const fetchDashboard = async () => {
         const res = await fetch('/api/events/my-dashboard', {
@@ -28,6 +32,8 @@ const PPTDash = () => {
             throw new Error(data.error || 'Failed to load dashboard');
         }
         setDashboard(data);
+        const linksData = await EVENT_SERVICE.getCalendarLinks(token, { timezone, reminderMinutes });
+        setCalendarLinks(linksData.links || []);
     };
     useEffect(() => {
         const role = token_verification(token);
@@ -39,6 +45,28 @@ const PPTDash = () => {
             .catch((error) => alert(error.message))
             .finally(() => setIsLoading(false));
     }, []);
+    const downloadIcs = async (eventIds = []) => {
+        try {
+            const options = { timezone, reminderMinutes };
+            if (eventIds.length)
+                options.eventIds = eventIds.join(',');
+            const res = await fetch(EVENT_SERVICE.getCalendarIcsUrl(options), {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!res.ok)
+                return alert('Failed to export calendar');
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = eventIds.length ? 'event.ics' : 'fems-events.ics';
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch {
+            alert('Failed to export calendar');
+        }
+    };
+    const openLink = (url) => window.open(url, '_blank');
     const ticketClick = async (ticketId) => {
         try {
             await navigator.clipboard.writeText(ticketId);
@@ -57,6 +85,12 @@ const PPTDash = () => {
                 <div className="my-events-grid">
                     <div className="my-events-box">
                         <h2>Upcoming Events</h2>
+                        <div className="row">
+                            <input value={timezone} onChange={(e) => setTimezone(e.target.value)} placeholder="Timezone (e.g. Asia/Kolkata)" />
+                            <input type="number" value={reminderMinutes} onChange={(e) => setReminderMinutes(Number(e.target.value) || 0)} placeholder="Reminder mins" />
+                            <button type="button" onClick={() => fetchDashboard().catch((e) => alert(e.message))}>Refresh Links</button>
+                            <button type="button" onClick={() => downloadIcs()}>Export All .ics</button>
+                        </div>
                         {dashboard.upcomingEvents.length === 0 ? (
                             <p>No upcoming registered events.</p>
                         ) : (
@@ -66,6 +100,17 @@ const PPTDash = () => {
                                     <p>Type: {item.event_type}</p>
                                     <p>Organizer: {item.organizer}</p>
                                     <p>Schedule: {item.schedule}</p>
+                                    <div className="row">
+                                        <button type="button" onClick={() => downloadIcs([item.event_id])}>.ics</button>
+                                        <button type="button" onClick={() => {
+                                            const link = calendarLinks.find((l) => String(l.event_id) === String(item.event_id));
+                                            if (link) openLink(link.google);
+                                        }}>Google</button>
+                                        <button type="button" onClick={() => {
+                                            const link = calendarLinks.find((l) => String(l.event_id) === String(item.event_id));
+                                            if (link) openLink(link.outlook);
+                                        }}>Outlook</button>
+                                    </div>
                                 </div>
                             ))
                         )}

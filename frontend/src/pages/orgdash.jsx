@@ -20,7 +20,12 @@ const OrgDash = () => {
     const [selectedEventId, setSelectedEventId] = useState('');
     const [detail, setDetail] = useState(null);
     const [detailFilters, setDetailFilters] = useState({ q: '', status: '' });
-    const [profile, setProfile] = useState({ organization_name: '', category: '', description: '', contact_email: '', phone_number: '', discord_webhook_url: '', email: '' });
+    const [profile, setProfile] = useState({ org_name: '', category: '', description: '', contact_email: '', phone_number: '', discord_webhook_url: '', email: '' });
+    const [resetReason, setResetReason] = useState('');
+    const [resetHistory, setResetHistory] = useState([]);
+    const [forum, setForum] = useState([]);
+    const [forumText, setForumText] = useState('');
+    const [forumAnnouncement, setForumAnnouncement] = useState(false);
     const [activeView, setActiveView] = useState(VIEWS.DASHBOARD);
     const [loading, setLoading] = useState(true);
     const selectedEvent = useMemo(() => events.find((e) => e._id === selectedEventId) || null, [events, selectedEventId]);
@@ -34,11 +39,25 @@ const OrgDash = () => {
         const data = await EVENT_SERVICE.getOrganizerEventDetails(token, eventId, filters);
         setDetail(data);
         setSelectedEventId(eventId);
+        const f = await EVENT_SERVICE.getForum(token, eventId).catch(() => ({ messages: [] }));
+        setForum(f.messages || []);
     }, [token, detailFilters]);
     const loadProfile = useCallback(async () => {
-        const data = await HOME_SERVICE.getOrganizerProfile(token);
+        const [data, history] = await Promise.all([
+            HOME_SERVICE.get_org_details(token),
+            HOME_SERVICE.getMyResetHistory(token).catch(() => [])
+        ]);
         setProfile((p) => ({ ...p, ...data }));
+        setResetHistory(history || []);
     }, [token]);
+    useEffect(() => {
+        if (!selectedEventId) return undefined;
+        const id = setInterval(async () => {
+            const d = await EVENT_SERVICE.getForum(token, selectedEventId).catch(() => ({ messages: [] }));
+            setForum(d.messages || []);
+        }, 5000);
+        return () => clearInterval(id);
+    }, [token, selectedEventId]);
     useEffect(() => {
         const role = token_verification(token);
         if (role !== 'OGR') return LogoutLogic();
@@ -56,7 +75,17 @@ const OrgDash = () => {
     }, [token, fetchDashboard]);
     const saveProfile = async (e) => {
         e.preventDefault();
-        try { await HOME_SERVICE.updateOrganizerProfile(token, profile); alert('Profile saved'); await loadProfile(); } catch (err) { alert(err.message); }
+        try { await HOME_SERVICE.update_org_details(token, profile); alert('Profile saved'); await loadProfile(); } catch (err) { alert(err.message); }
+    };
+    const submitReset = async (e) => {
+        e.preventDefault();
+        if (!resetReason.trim()) return;
+        try {
+            await HOME_SERVICE.requestReset(token, resetReason.trim());
+            setResetReason('');
+            await loadProfile();
+            alert('Reset request submitted');
+        } catch (err) { alert(err.message); }
     };
     const exportCsv = async () => {
         if (!selectedEventId) return;
@@ -71,6 +100,29 @@ const OrgDash = () => {
         a.click();
         URL.revokeObjectURL(url);
     };
+    const postForum = async () => {
+        if (!selectedEventId || !forumText.trim()) return;
+        try {
+            await EVENT_SERVICE.postForum(token, selectedEventId, { text: forumText.trim(), isAnnouncement: forumAnnouncement });
+            setForumText('');
+            setForumAnnouncement(false);
+            const d = await EVENT_SERVICE.getForum(token, selectedEventId);
+            setForum(d.messages || []);
+        } catch (err) { alert(err.message); }
+    };
+    const pinForum = async (id, pinned) => {
+        try {
+            await EVENT_SERVICE.pinForum(token, selectedEventId, id, !pinned);
+            const d = await EVENT_SERVICE.getForum(token, selectedEventId);
+            setForum(d.messages || []);
+        } catch (err) { alert(err.message); }
+    };
+    const deleteForum = async (id) => {
+        try {
+            await EVENT_SERVICE.deleteForum(token, selectedEventId, id);
+            setForum((prev) => prev.filter((m) => m._id !== id));
+        } catch (err) { alert(err.message); }
+    };
     return (
         <div className="page">
             <h1>ORGANIZER DASHBOARD</h1>
@@ -79,6 +131,7 @@ const OrgDash = () => {
                 <button type="button" onClick={() => setActiveView(VIEWS.CREATE)}>Create Event</button>
                 <button type="button" onClick={() => setActiveView(VIEWS.PROFILE)}>Profile</button>
                 <button type="button" onClick={() => setActiveView(VIEWS.ONGOING)}>Ongoing Events</button>
+                <button type="button" onClick={() => { window.location.href = '/attendance_scan'; }}>Attendance Scanner</button>
                 <button type="button" onClick={LogoutLogic}>Logout</button>
             </nav>
             {loading && <p>Loading dashboard...</p>}
@@ -167,6 +220,22 @@ const OrgDash = () => {
                                     {(detail.participants || []).map((p) => <tr key={p.ticket_id || `${p.email}-${p.regDate}`}><td>{p.name}</td><td>{p.email}</td><td>{p.regDate ? new Date(p.regDate).toLocaleString() : '-'}</td><td>{p.payment}</td><td>{p.team}</td><td>{p.attendance ? 'Yes' : 'No'}</td></tr>)}
                                 </tbody></table>
                             </div>
+                            <h3>Forum Moderation</h3>
+                            <div className="row">
+                                <input placeholder="Post update or reply" value={forumText} onChange={(e) => setForumText(e.target.value)} />
+                                <label><input type="checkbox" checked={forumAnnouncement} onChange={(e) => setForumAnnouncement(e.target.checked)} /> Announcement</label>
+                                <button type="button" onClick={postForum}>Post</button>
+                            </div>
+                            {(forum || []).map((m) => (
+                                <div key={m._id} className="card">
+                                    <p><strong>{m.pinned ? '[Pinned] ' : ''}{m.isAnnouncement ? '[Announcement] ' : ''}{m.authorName}</strong></p>
+                                    <p>{m.text}</p>
+                                    <div className="row">
+                                        <button type="button" onClick={() => pinForum(m._id, m.pinned)}>{m.pinned ? 'Unpin' : 'Pin'}</button>
+                                        <button type="button" onClick={() => deleteForum(m._id)}>Delete</button>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     )}
                 </>
@@ -178,7 +247,7 @@ const OrgDash = () => {
                 <div className="card">
                     <h2>Organizer Profile</h2>
                     <form onSubmit={saveProfile} className="row">
-                        <input value={profile.organization_name || ''} placeholder="Name" onChange={(e) => setProfile((p) => ({ ...p, organization_name: e.target.value }))} />
+                        <input value={profile.org_name || ''} placeholder="Name" onChange={(e) => setProfile((p) => ({ ...p, org_name: e.target.value }))} />
                         <input value={profile.category || ''} placeholder="Category" onChange={(e) => setProfile((p) => ({ ...p, category: e.target.value }))} />
                         <input value={profile.contact_email || ''} placeholder="Contact Email" onChange={(e) => setProfile((p) => ({ ...p, contact_email: e.target.value }))} />
                         <input value={profile.phone_number || ''} placeholder="Contact Number" onChange={(e) => setProfile((p) => ({ ...p, phone_number: e.target.value }))} />
@@ -187,6 +256,12 @@ const OrgDash = () => {
                         <textarea value={profile.description || ''} placeholder="Description" onChange={(e) => setProfile((p) => ({ ...p, description: e.target.value }))} />
                         <button type="submit">Save Profile</button>
                     </form>
+                    <h3>Password Reset Request</h3>
+                    <form onSubmit={submitReset} className="row">
+                        <input value={resetReason} onChange={(e) => setResetReason(e.target.value)} placeholder="Reason for reset" />
+                        <button type="submit">Request Reset</button>
+                    </form>
+                    {(resetHistory || []).map((r) => <p key={r._id}>{new Date(r.createdAt).toLocaleString()} - {r.status}{r.adminComments ? ` (${r.adminComments})` : ''}</p>)}
                 </div>
             )}
         </div>

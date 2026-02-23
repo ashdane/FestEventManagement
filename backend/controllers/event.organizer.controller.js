@@ -14,9 +14,9 @@ const buildParticipants = async (eventId, regFee, q, status) => {
 };
 const maybePostDiscord = async (organizerId, event) => {
     try {
-        const organizer = await Organizer.findById(organizerId).select('discord_webhook_url organization_name');
+        const organizer = await Organizer.findById(organizerId).select('discord_webhook_url org_name');
         if (!organizer?.discord_webhook_url) return;
-        await fetch(organizer.discord_webhook_url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: `New event published by ${organizer.organization_name}: ${event.event_name} (${new Date(event.event_start).toLocaleString()})` }) });
+        await fetch(organizer.discord_webhook_url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: `New event published by ${organizer.org_name}: ${event.event_name} (${new Date(event.event_start).toLocaleString()})` }) });
     } catch (_) {}
 };
 const createEventDraft = async (req, res) => {

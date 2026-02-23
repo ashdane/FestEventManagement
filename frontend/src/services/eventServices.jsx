@@ -43,6 +43,47 @@ const browseEvents = async (token, filters = {}) => {
     const queryString = HTTP_CLIENT.buildQueryString(filters);
     return HTTP_CLIENT.request(`/api/events${queryString}`, { token });
 };
+const getCalendarLinks = async (token, options = {}) => {
+    const queryString = HTTP_CLIENT.buildQueryString(options);
+    return HTTP_CLIENT.request(`/api/events/calendar/links${queryString}`, { token });
+};
+const getCalendarIcsUrl = (options = {}) => {
+    const queryString = HTTP_CLIENT.buildQueryString(options);
+    return `/api/events/calendar/export.ics${queryString}`;
+};
+const getForum = async (token, eventId, options = {}) => {
+    const qs = HTTP_CLIENT.buildQueryString(options);
+    return HTTP_CLIENT.request(`/api/events/${eventId}/forum${qs}`, { token });
+};
+const postForum = async (token, eventId, body) => {
+    return HTTP_CLIENT.request(`/api/events/${eventId}/forum`, { method: 'POST', token, body });
+};
+const reactForum = async (token, eventId, messageId, emoji) => {
+    return HTTP_CLIENT.request(`/api/events/${eventId}/forum/${messageId}/react`, { method: 'POST', token, body: { emoji } });
+};
+const pinForum = async (token, eventId, messageId, pinned) => {
+    return HTTP_CLIENT.request(`/api/events/${eventId}/forum/${messageId}/pin`, { method: 'PATCH', token, body: { pinned } });
+};
+const deleteForum = async (token, eventId, messageId) => {
+    return HTTP_CLIENT.request(`/api/events/${eventId}/forum/${messageId}`, { method: 'DELETE', token });
+};
+const forumNotifications = async (token, eventId, since) => {
+    const qs = HTTP_CLIENT.buildQueryString({ since });
+    return HTTP_CLIENT.request(`/api/events/${eventId}/forum/notifications${qs}`, { token });
+};
+const scanAttendance = async (token, ticketId) => {
+    return HTTP_CLIENT.request('/api/events/attendance/scan', { method: 'PUT', token, body: { ticketId } });
+};
+const getAttendanceDashboard = async (token, eventId) => {
+    return HTTP_CLIENT.request(`/api/events/attendance/dashboard/${eventId}`, { token });
+};
+const getAttendanceCsvUrl = (eventId) => `/api/events/attendance/export/${eventId}`;
+const manualOverrideAttendance = async (token, payload) => {
+    return HTTP_CLIENT.request('/api/events/attendance/manual-override', { method: 'PUT', token, body: payload });
+};
+const getAttendanceAudit = async (token, eventId) => {
+    return HTTP_CLIENT.request(`/api/events/attendance/audit/${eventId}`, { token });
+};
 export default {
     createEventDraft,
     getOrganizerEvents,
@@ -52,5 +93,18 @@ export default {
     publishEvent,
     getEventRegistrationForm,
     saveEventRegistrationForm,
-    browseEvents
+    browseEvents,
+    getForum,
+    postForum,
+    reactForum,
+    pinForum,
+    deleteForum,
+    forumNotifications,
+    getCalendarLinks,
+    getCalendarIcsUrl,
+    scanAttendance,
+    getAttendanceDashboard,
+    getAttendanceCsvUrl,
+    manualOverrideAttendance,
+    getAttendanceAudit
 };
