@@ -1,0 +1,23 @@
+.pptdash-container {
+  padding: 20px;
+}
+
+.my-events-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.my-events-box {
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 12px;
+  min-height: 420px;
+}
+
+@media (max-width: 960px) {
+  .my-events-grid {
+    grid-template-columns: 1fr;
+  }
+}

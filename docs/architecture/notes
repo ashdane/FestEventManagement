@@ -1,0 +1,71 @@
+------------ FEMS 
+
+## BACKEND-----------------------------------------------------------------------------
+------ .env 
+-> storage for system specific configs as well as secrets
+
+------ app.js
+-> "conducts/glues" the entire application together
+-> imports
+-> it parses the req body if it is of content-type: application/json and populates the req.body with it
+-> sets up dbconnection
+-> routes to authentication part and users part
+-> tells the server to listen to requests
+
+------ utils
+--- admin-creation.js
+-> A utility async function to create the admin if not already present in DB
+-> called in app.js (when starting the server)
+
+------ routes
+--- auth.routes.js
+-> takes care of routing for authentication
+--- user.routes.js
+-> takes care of routing for home page + users (getting users, POSTing (saving in DB) users)
+
+------ config
+--- db.js
+-> defines the async function to connect to the database: tries to connect, else kills the backend on failure
+
+------ controllers
+-> controllers contain all the code as functions which take the request from the user and accordinly manipulate data from the database to satisfy the request as a response
+--- admin.controller.js
+-> creates organizer given field values
+--- auth.controller.js
+-> contains the logic for a new participant signup and a login for organizer and participant. also contains helper function make make a JWT out of input fields
+--- user.controller.js
+-> contains the logic for how to save a user to and how to get users, and how to get organizers from DB
+------ middleware
+--- auth.middleware.js
+-> Intercepts requests and determines whether to let them pass through or not (token-based [JWT])
+-> It follows a passing the baton kind of mechanism to affirm (Single Responsibility Principle). It is implemented using next()
+
+------ models
+--- organizer.js
+--- participant.js
+--- user.js
+the base schema; utilized polymorphism (schema inheritance) via a mongoose mehthod called discriminator. it 
+allows me to store users of all type in a single mongodb collection
+
+------ docs
+--- architecture
+--- devlogs
+
+------ node_modules
+
+------ package-lock.json
+
+------ package.json
+
+## FRONTEND ------------------------------------------------------------------------------
+
+---------------- src
+-------- App.jsx
+-------- main.jsx
+-------- routes.jsx
+-------- services
+-------- pages
+-------- hooks
+-------- assets
+--------------- node_modules
+--------------- public
