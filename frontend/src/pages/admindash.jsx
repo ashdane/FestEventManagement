@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import useLogout from '../hooks/useLogout';
 import useVerifyRoles from '../hooks/useVerifyRoles';
 import AdminTopNav from '../assets/AdminTopNav';
 import HTTP_CLIENT from '../services/httpClient';
+const ADMIN_VIEWS = ['resets', 'organizers'];
 const AdminDash = () => {
     const { token_verification } = useVerifyRoles();
     const { LogoutLogic } = useLogout();
+    const location = useLocation();
+    const navigate = useNavigate();
     const token = localStorage.getItem('token');
     const [pending, setPending] = useState([]);
     const [history, setHistory] = useState([]);
@@ -14,6 +18,14 @@ const AdminDash = () => {
     const [lastCreds, setLastCreds] = useState(null);
     const [lastResetCred, setLastResetCred] = useState(null);
     const [activeView, setActiveView] = useState('resets');
+    useEffect(() => {
+        const view = new URLSearchParams(location.search).get('view');
+        if (view && ADMIN_VIEWS.includes(view)) setActiveView(view);
+    }, [location.search]);
+    useEffect(() => {
+        const current = new URLSearchParams(location.search).get('view') || 'resets';
+        if (current !== activeView) navigate(`/admindash?view=${activeView}`, { replace: true });
+    }, [activeView, location.search, navigate]);
     const api = async (url, options = {}) => {
         const res = await fetch(HTTP_CLIENT.buildUrl(url), {
             ...options,

@@ -11,15 +11,19 @@ const isIiitEmail = (email = '') =>
 const signup = async (req, res) => {
     try{
         const { usertype, first_name, last_name, email, org_name, phone_number, password } = req.body
+        const normalizedEmail = String(email || '').trim().toLowerCase();
+        if (!normalizedEmail) return res.status(400).json({ message: 'Email is required' });
+        const existing = await User.findOne({ email: normalizedEmail }).select('_id');
+        if (existing) return res.status(409).json({ message: 'Email already registered. Please login or use a different email.' });
         let participant_type = String(req.body.participant_type || '').trim().toUpperCase();
-        if (!participant_type) participant_type = isIiitEmail(email) ? 'ITST' : 'NITST';
+        if (!participant_type) participant_type = isIiitEmail(normalizedEmail) ? 'ITST' : 'NITST';
         if (participant_type === 'IIIT') participant_type = 'ITST';
         if (['NON_IIIT', 'NON-IIIT', 'NONIIIT', 'OTHER'].includes(participant_type)) participant_type = 'NITST';
         if (!['ITST', 'NITST'].includes(participant_type))
             return res.status(400).json({ message: 'Invalid participant type' });
-        if(participant_type == 'ITST' && !isIiitEmail(email))
-            return res.status(400).json({ message: 'Please enter your student institute ID!'}) //400: Bad Request // you have to return it, without returning, it keeps going on
-        const participant = new Participant({ role: 'PPT', participant_type, first_name, last_name, email, org_name, phone_number, password })
+        if(participant_type == 'ITST' && !isIiitEmail(normalizedEmail))
+            return res.status(400).json({ message: 'For IIIT Student, email must end with @students.iiit.ac.in, @research.iiit.ac.in, or @iiit.ac.in' }) //400: Bad Request // you have to return it, without returning, it keeps going on
+        const participant = new Participant({ role: 'PPT', participant_type, first_name, last_name, email: normalizedEmail, org_name, phone_number, password })
         await participant.save()
         const participant_token = make_token(participant._id, participant.role, participant.participant_type)
         res.status(201).json({

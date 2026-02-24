@@ -40,7 +40,7 @@ const parseResponse = async (response) => {
     const isJson = contentType.includes('application/json');
     const data = isJson ? await response.json() : null;
     if (!response.ok) {
-        throw new Error(data?.error || 'Request failed');
+        throw new Error(data?.error || data?.message || 'Request failed');
     }
     return data;
 };

@@ -35,6 +35,10 @@ const OrgDash = () => {
         const view = new URLSearchParams(location.search).get('view');
         if (view && Object.values(VIEWS).includes(view)) setActiveView(view);
     }, [location.search]);
+    useEffect(() => {
+        const current = new URLSearchParams(location.search).get('view') || VIEWS.DASHBOARD;
+        if (current !== activeView) navigate(`/orgdash?view=${activeView}`, { replace: true });
+    }, [activeView, location.search, navigate]);
     const fetchDashboard = useCallback(async () => {
         const data = await EVENT_SERVICE.getOrganizerDashboardSummary(token);
         setEvents(data.events || []);
