@@ -1,2 +1,0 @@
-Frontend URL: https://festeventmanagement.vercel.app
-Backend Base API URL: https://festeventmanagement-w21b.onrender.com
