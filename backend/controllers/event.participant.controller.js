@@ -210,22 +210,29 @@ const registerForEvent = async (req, res) => {
         const participantType = participant.participant_type || req.user.participant_type;
         if (!isPPTelig(event.eligibility, participantType, participant.email))
             return res.status(403).json({ error: 'Participant is ineligible for this event' });
-        const alreadyRegistered = (participant.registrations || []).some(
-            (reg) => String(reg.event_id) === String(event._id)
-        );
-        if (alreadyRegistered)
-            return res.status(400).json({ error: 'Already registered for this event' });
         const activeRegs = await getActiveRegistrationCount(event._id);
         if (activeRegs >= event.reg_limit)
             return res.status(400).json({ error: 'Registrations are full!' });
         const ticketId = `TKT-${event._id.toString().slice(-6).toUpperCase()}-${participant._id.toString()
             .slice(-6).toUpperCase()}`;
-        participant.registrations.push({
-            event_id: event._id,
-            ticket_id: ticketId,
-            participation_status: 'REGISTERED',
-            team_name: req.body.team_name || 'N/A'
-        });
+        const updated = await Participant.findOneAndUpdate(
+            {
+                _id: req.user.id,
+                registrations: { $not: { $elemMatch: { event_id: event._id } } }
+            },
+            {
+                $push: {
+                    registrations: {
+                        event_id: event._id,
+                        ticket_id: ticketId,
+                        participation_status: 'REGISTERED',
+                        team_name: req.body.team_name || 'N/A'
+                    }
+                }
+            },
+            { new: true }
+        );
+        if (!updated) return res.status(400).json({ error: 'Already registered for this event' });
         if (!event.form_locked) {
             event.form_locked = true;
             await event.save();
@@ -243,7 +250,6 @@ const registerForEvent = async (req, res) => {
         } catch (error) {
             console.error(error.message);
         }
-        await participant.save();
         return res.status(201).json({ message: 'Registration successful', ticket_id: ticketId });
     } catch (error) {
         return res.status(400).json({ error: error.message });

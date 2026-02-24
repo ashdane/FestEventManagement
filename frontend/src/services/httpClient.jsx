@@ -37,11 +37,22 @@ const detectTimezone = () => {
 };
 const parseResponse = async (response) => {
     const contentType = response.headers.get('content-type') || '';
-    const isJson = contentType.includes('application/json');
-    const data = isJson ? await response.json() : null;
-    if (!response.ok) {
-        throw new Error(data?.error || data?.message || 'Request failed');
+    const raw = await response.text();
+    let data = null;
+    try {
+        data = raw ? JSON.parse(raw) : null;
+    } catch {
+        data = null;
     }
+    if (!response.ok) {
+        throw new Error(
+            data?.error ||
+            data?.message ||
+            raw ||
+            `Request failed (${response.status})`
+        );
+    }
+    if (contentType.includes('application/json')) return data;
     return data;
 };
 const request = async (url, { method = 'GET', token, body } = {}) => {
