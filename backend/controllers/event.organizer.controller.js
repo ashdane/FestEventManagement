@@ -108,7 +108,7 @@ const getOrganizerEventDetails = async (req, res) => {
 };
 const getOrganizerDashboardSummary = async (req, res) => {
     try {
-        const events = await Event.find({ org_id: req.user.id }).select('event_name reg_fee status event_start event_end');
+        const events = await Event.find({ org_id: req.user.id }).select('event_name event_type reg_fee status event_start event_end');
         const statsByEvent = await Promise.all(events.map(async (event) => {
             const formatted = formatOrgEvent(event);
             if (formatted.event_type === 'Merchandise') {

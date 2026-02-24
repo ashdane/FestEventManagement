@@ -4,6 +4,7 @@ import useLogout from '../hooks/useLogout';
 import useVerifyRoles from '../hooks/useVerifyRoles';
 import EVENT_SERVICE from '../services/eventServices';
 import HOME_SERVICE from '../services/homeServices';
+import HTTP_CLIENT from '../services/httpClient';
 import FormBuilder from '../components/events/FormBuilder';
 import OrgTopNav from '../assets/OrgTopNav';
 const VIEWS = { DASHBOARD: 'dashboard', CREATE: 'create', PROFILE: 'profile', ONGOING: 'ongoing' };
@@ -116,7 +117,7 @@ const OrgDash = () => {
     const exportCsv = async () => {
         if (!selectedEventId) return;
         const params = new URLSearchParams({ format: 'csv', ...detailFilters }).toString();
-        const res = await fetch(`/api/events/organizer/${selectedEventId}?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await fetch(HTTP_CLIENT.buildUrl(`/api/events/organizer/${selectedEventId}?${params}`), { headers: { Authorization: `Bearer ${token}` } });
         if (!res.ok) return alert('CSV export failed');
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
@@ -224,7 +225,14 @@ const OrgDash = () => {
                                         <div className="row">
                                             <input placeholder="Search participant/email/team" value={detailFilters.q} onChange={(x) => setDetailFilters((f) => ({ ...f, q: x.target.value }))} />
                                             <select value={detailFilters.status} onChange={(x) => setDetailFilters((f) => ({ ...f, status: x.target.value }))}>
-                                                <option value="">All Status</option><option value="REGISTERED">REGISTERED</option><option value="COMPLETED">COMPLETED</option><option value="CANCELLED">CANCELLED</option><option value="REJECTED">REJECTED</option>
+                                                <option value="">All Status</option>
+                                                <option value="REGISTERED">REGISTERED</option>
+                                                <option value="COMPLETED">COMPLETED</option>
+                                                <option value="CANCELLED">CANCELLED</option>
+                                                <option value="REJECTED">REJECTED</option>
+                                                <option value="Pending Approval">Pending Approval</option>
+                                                <option value="Successful">Successful</option>
+                                                <option value="Rejected">Rejected</option>
                                             </select>
                                             <button type="button" onClick={() => loadDetail(e._id, detailFilters, true)}>Apply</button>
                                             <button type="button" onClick={exportCsv}>Export CSV</button>
