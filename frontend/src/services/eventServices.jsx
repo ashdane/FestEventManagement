@@ -43,6 +43,12 @@ const browseEvents = async (token, filters = {}) => {
     const queryString = HTTP_CLIENT.buildQueryString(filters);
     return HTTP_CLIENT.request(`/api/events${queryString}`, { token });
 };
+const getEventDetails = async (token, eventId) => {
+    return HTTP_CLIENT.request(`/api/events/${eventId}`, { token });
+};
+const registerForEvent = async (token, eventId, payload = {}) => {
+    return HTTP_CLIENT.request(`/api/events/${eventId}/register`, { method: 'POST', token, body: payload });
+};
 const getMyEventsDashboard = async (token) => {
     return HTTP_CLIENT.request('/api/events/my-dashboard', { token });
 };
@@ -80,7 +86,7 @@ const scanAttendance = async (token, ticketId) => {
 const getAttendanceDashboard = async (token, eventId) => {
     return HTTP_CLIENT.request(`/api/events/attendance/dashboard/${eventId}`, { token });
 };
-const getAttendanceCsvUrl = (eventId) => `/api/events/attendance/export/${eventId}`;
+const getAttendanceCsvUrl = (eventId) => HTTP_CLIENT.buildUrl(`/api/events/attendance/export/${eventId}`);
 const manualOverrideAttendance = async (token, payload) => {
     return HTTP_CLIENT.request('/api/events/attendance/manual-override', { method: 'PUT', token, body: payload });
 };
@@ -97,6 +103,8 @@ export default {
     getEventRegistrationForm,
     saveEventRegistrationForm,
     browseEvents,
+    getEventDetails,
+    registerForEvent,
     getMyEventsDashboard,
     getForum,
     postForum,

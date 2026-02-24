@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import TopNav from '../assets/TopNav';
 import useLogout from '../hooks/useLogout';
 import useVerifyRoles from '../hooks/useVerifyRoles';
+import PARTICIPANT_SERVICE from '../services/participantServices';
 const OrganizersAndClubs = () => {
     const [organizers, setOrganizers] = useState([]);
     const [selectedOrganizerId, setSelectedOrganizerId] = useState('');
@@ -11,23 +12,11 @@ const OrganizersAndClubs = () => {
     const { LogoutLogic } = useLogout();
     const token = localStorage.getItem('token');
     const fetchOrganizers = async () => {
-        const res = await fetch('/api/participants/organizers', {
-            headers: { Authorization: `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (!res.ok) {
-            throw new Error(data.error || 'Failed to fetch organizers');
-        }
+        const data = await PARTICIPANT_SERVICE.getOrganizersList(token);
         setOrganizers(data);
     };
     const fetchOrganizerDetails = async (organizerId) => {
-        const res = await fetch(`/api/participants/organizers/${organizerId}`, {
-            headers: { Authorization: `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (!res.ok) {
-            throw new Error(data.error || 'Failed to fetch organizer details');
-        }
+        const data = await PARTICIPANT_SERVICE.getOrganizerDetails(token, organizerId);
         setSelectedOrganizerDetails(data);
         setSelectedOrganizerId(organizerId);
     };
@@ -42,16 +31,9 @@ const OrganizersAndClubs = () => {
             .finally(() => setIsLoading(false));
     }, []);
     const handleFollowAction = async (organizerId, isCurrentlyFollowed) => {
-        const action = isCurrentlyFollowed ? 'unfollow' : 'follow';
-        const res = await fetch(`/api/participants/organizers/${organizerId}/${action}`, {
-            method: 'PATCH',
-            headers: { Authorization: `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (!res.ok) {
-            alert(data.error || 'Action failed');
-            return;
-        }
+        await (isCurrentlyFollowed
+            ? PARTICIPANT_SERVICE.unfollowOrganizer(token, organizerId)
+            : PARTICIPANT_SERVICE.followOrganizer(token, organizerId));
         setOrganizers((prev) =>
             prev.map((org) =>
                 org._id === organizerId ? { ...org, isFollowed: !isCurrentlyFollowed } : org

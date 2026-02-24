@@ -14,19 +14,27 @@ const EventDetails = () => {
     const [text, setText] = useState('');
     const [replyTo, setReplyTo] = useState('');
     const [since, setSince] = useState(new Date().toISOString());
+    const [forumAllowed, setForumAllowed] = useState(false);
     const token = localStorage.getItem('token');
     const loadDetails = async () => {
-        const res = await fetch(`/api/events/${eventId}`, { headers: { Authorization: `Bearer ${token}` } });
-        const payload = await res.json();
-        if (!res.ok) throw new Error(payload.error || 'Failed to load event details');
+        const payload = await EVENT_SERVICE.getEventDetails(token, eventId);
+        setForumAllowed(Boolean(payload?.myRegistration));
         setData(payload);
+        return payload;
     };
     useEffect(() => {
         const role = token_verification(token);
         if (role !== 'PPT') return LogoutLogic();
-        loadDetails().catch((error) => alert(error.message)).finally(() => setLoading(false));
-        EVENT_SERVICE.getForum(token, eventId).then((d) => setForum(d.messages || [])).catch(() => {});
+        loadDetails()
+            .then((payload) => {
+                if (payload?.myRegistration) {
+                    EVENT_SERVICE.getForum(token, eventId).then((d) => setForum(d.messages || [])).catch(() => {});
+                }
+            })
+            .catch((error) => alert(error.message))
+            .finally(() => setLoading(false));
         const id = setInterval(async () => {
+            if (!forumAllowed) return;
             try {
                 const n = await EVENT_SERVICE.forumNotifications(token, eventId, since);
                 if ((n.newCount || 0) > 0) {
@@ -37,19 +45,21 @@ const EventDetails = () => {
             } catch {}
         }, 5000);
         return () => clearInterval(id);
-    }, [eventId, token, token_verification, LogoutLogic, since]);
+    }, [eventId, token, token_verification, LogoutLogic, since, forumAllowed]);
     const register = async () => {
-        const res = await fetch(`/api/events/${eventId}/register`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({})
-        });
-        const payload = await res.json();
-        if (!res.ok) return alert(payload.error || 'Registration failed');
-        alert(`Registered successfully. Ticket ID: ${payload.ticket_id}`);
-        setLoading(true);
-        await loadDetails().catch((error) => alert(error.message));
-        setLoading(false);
+        try {
+            const payload = await EVENT_SERVICE.registerForEvent(token, eventId, {});
+            alert(`Registered successfully. Ticket ID: ${payload.ticket_id}`);
+            setLoading(true);
+            const details = await loadDetails().catch((error) => alert(error.message));
+            if (details?.myRegistration) {
+                const d = await EVENT_SERVICE.getForum(token, eventId).catch(() => ({ messages: [] }));
+                setForum(d.messages || []);
+            }
+            setLoading(false);
+        } catch (error) {
+            alert(error.message || 'Registration failed');
+        }
     };
     const postMessage = async () => {
         if (!text.trim()) return;
@@ -83,25 +93,31 @@ const EventDetails = () => {
             {!canRegister && <p style={{ color: 'crimson', marginTop: '8px' }}>{blockingReason}</p>}
             <div className="card" style={{ marginTop: '14px' }}>
                 <h2>Discussion Forum</h2>
-                <div className="row">
-                    <input value={text} onChange={(e) => setText(e.target.value)} placeholder={replyTo ? 'Reply...' : 'Ask a question...'} />
-                    {replyTo && <button type="button" onClick={() => setReplyTo('')}>Cancel Reply</button>}
-                    <button type="button" onClick={postMessage}>Post</button>
-                </div>
-                {(forum || []).map((m) => (
-                    <div key={m._id} className="card">
-                        <p><strong>{m.isAnnouncement ? '[Announcement] ' : ''}{m.authorName}</strong>{m.parentId ? ' (reply)' : ''}</p>
-                        <p>{m.text}</p>
+                {!forumAllowed ? (
+                    <p>Register first to access event discussion.</p>
+                ) : (
+                    <>
                         <div className="row">
-                            <button type="button" onClick={() => setReplyTo(m._id)}>Reply</button>
-                            <button type="button" onClick={async () => {
-                                await EVENT_SERVICE.reactForum(token, eventId, m._id, 'like');
-                                const d = await EVENT_SERVICE.getForum(token, eventId);
-                                setForum(d.messages || []);
-                            }}>Like {(m.reactions || []).find((r) => r.emoji === 'like')?.users?.length || 0}</button>
+                            <input value={text} onChange={(e) => setText(e.target.value)} placeholder={replyTo ? 'Reply...' : 'Ask a question...'} />
+                            {replyTo && <button type="button" onClick={() => setReplyTo('')}>Cancel Reply</button>}
+                            <button type="button" onClick={postMessage}>Post</button>
                         </div>
-                    </div>
-                ))}
+                        {(forum || []).map((m) => (
+                            <div key={m._id} className="card">
+                                <p><strong>{m.isAnnouncement ? '[Announcement] ' : ''}{m.authorName}</strong>{m.parentId ? ' (reply)' : ''}</p>
+                                <p>{m.text}</p>
+                                <div className="row">
+                                    <button type="button" onClick={() => setReplyTo(m._id)}>Reply</button>
+                                    <button type="button" onClick={async () => {
+                                        await EVENT_SERVICE.reactForum(token, eventId, m._id, 'like');
+                                        const d = await EVENT_SERVICE.getForum(token, eventId);
+                                        setForum(d.messages || []);
+                                    }}>Like {(m.reactions || []).find((r) => r.emoji === 'like')?.users?.length || 0}</button>
+                                </div>
+                            </div>
+                        ))}
+                    </>
+                )}
             </div>
         </div>
     );

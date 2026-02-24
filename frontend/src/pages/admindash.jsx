@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import useLogout from '../hooks/useLogout';
 import useVerifyRoles from '../hooks/useVerifyRoles';
 import AdminTopNav from '../assets/AdminTopNav';
+import HTTP_CLIENT from '../services/httpClient';
 const AdminDash = () => {
     const { token_verification } = useVerifyRoles();
     const { LogoutLogic } = useLogout();
@@ -14,19 +15,22 @@ const AdminDash = () => {
     const [lastResetCred, setLastResetCred] = useState(null);
     const [activeView, setActiveView] = useState('resets');
     const api = async (url, options = {}) => {
-        const res = await fetch(url, {
+        const res = await fetch(HTTP_CLIENT.buildUrl(url), {
             ...options,
             headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(options.headers || {}) }
         });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || 'Request failed');
+        const contentType = res.headers.get('content-type') || '';
+        const data = contentType.includes('application/json') ? await res.json().catch(() => ({})) : await res.text().catch(() => '');
+        if (!res.ok) throw new Error((typeof data === 'object' ? data?.error : '') || 'Request failed');
         return data;
     };
     const load = async () => {
         const all = await api('/api/admin/resets');
-        setPending((all || []).filter((r) => r.status === 'Pending'));
-        setHistory(await api('/api/admin/resets/history'));
-        setOrganizers(await api('/api/admin/organizers'));
+        setPending((Array.isArray(all) ? all : []).filter((r) => r.status === 'Pending'));
+        const hist = await api('/api/admin/resets/history');
+        setHistory(Array.isArray(hist) ? hist : []);
+        const orgs = await api('/api/admin/organizers');
+        setOrganizers(Array.isArray(orgs) ? orgs : []);
     };
     const act = async (type, id) => {
         const comments = window.prompt('Comments (optional)') || '';
