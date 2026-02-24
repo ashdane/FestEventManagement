@@ -110,17 +110,28 @@ const getOrganizerDashboardSummary = async (req, res) => {
     try {
         const events = await Event.find({ org_id: req.user.id }).select('event_name reg_fee status event_start event_end');
         const statsByEvent = await Promise.all(events.map(async (event) => {
+            const formatted = formatOrgEvent(event);
+            if (formatted.event_type === 'Merchandise') {
+                const merch = await Ticket.find({ eventId: event._id, type: 'Merchandise', status: 'Successful' }).select('merchandiseDetails.qty attendance.scanned');
+                const regCount = merch.length;
+                const qtySold = merch.reduce((sum, t) => sum + Number(t.merchandiseDetails?.qty || 0), 0);
+                const attendance = merch.filter((t) => t.attendance?.scanned).length;
+                return { ...formatted, regCount, qtySold, attendance };
+            }
             const stats = await getEventStats(event._id);
-            return { ...formatOrgEvent(event), regCount: stats.registrationsCount, attendance: stats.attendanceCount };
+            return { ...formatted, regCount: stats.registrationsCount, qtySold: stats.registrationsCount, attendance: stats.attendanceCount };
         }));
         const analytics = statsByEvent.reduce((acc, event) => {
             acc.totalRegistrations += event.regCount;
             acc.totalAttendance += event.attendance;
-            acc.totalRevenue += event.regCount * (event.reg_fee || 0);
+            acc.totalRevenue += Number(event.qtySold || event.regCount || 0) * (event.reg_fee || 0);
             if (['COMPLETED', 'CLOSED'].includes(event.status)) acc.completed_events += 1;
             return acc;
         }, { totalRegistrations: 0, totalRevenue: 0, totalAttendance: 0, completed_events: 0 });
-        analytics.total_sales = analytics.totalRegistrations;
+        analytics.total_sales = statsByEvent.reduce((sum, e) => sum + Number(e.qtySold || e.regCount || 0), 0);
+        analytics.total_registrations = analytics.totalRegistrations;
+        analytics.total_revenue = analytics.totalRevenue;
+        analytics.total_attendance = analytics.totalAttendance;
         return res.status(200).json({ events: statsByEvent, analytics });
     } catch (error) {
         return res.status(500).json({ error: error.message });
