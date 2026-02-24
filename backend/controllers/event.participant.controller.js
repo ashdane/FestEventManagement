@@ -3,6 +3,29 @@ const { Event, Organizer, Participant, ACTIVE_STATUSES, isRegOpen, isPPTelig, ge
 const { sendTicketMail } = require('../utils/mailer');
 const esc = (v = '') => String(v).replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;');
 const stamp = (d) => new Date(d).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+const norm = (v = '') => String(v).toLowerCase().trim();
+const levenshtein = (a = '', b = '') => {
+    const x = norm(a), y = norm(b);
+    if (!x) return y.length;
+    if (!y) return x.length;
+    const dp = Array.from({ length: x.length + 1 }, (_, i) => [i]);
+    for (let j = 1; j <= y.length; j++) dp[0][j] = j;
+    for (let i = 1; i <= x.length; i++) {
+        for (let j = 1; j <= y.length; j++) {
+            const cost = x[i - 1] === y[j - 1] ? 0 : 1;
+            dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+        }
+    }
+    return dp[x.length][y.length];
+};
+const fuzzyMatch = (text = '', query = '') => {
+    const t = norm(text), q = norm(query);
+    if (!q) return true;
+    if (t.includes(q)) return true;
+    const maxDist = q.length <= 4 ? 1 : q.length <= 8 ? 2 : 3;
+    const words = t.split(/[^a-z0-9]+/).filter(Boolean);
+    return words.some((w) => levenshtein(w, q) <= maxDist || levenshtein(w.slice(0, q.length), q) <= maxDist);
+};
 const validTimezone = (tz) => {
     try {
         if (!tz) return false;
@@ -66,11 +89,6 @@ const getBrowsableEvents = async (req, res) => {
         }
         if (followedOnly === 'true')
             mongoQuery.org_id = { $in: participant.orgs_of_interests.map(String) };
-        if (q)
-            mongoQuery.$or = [
-                { event_name: { $regex: q, $options: 'i' } },
-                { event_tag: { $regex: q, $options: 'i' } }
-            ];
         const events = await Event.find(mongoQuery).sort({ event_start: 1 }).lean();
         const organizerIds = [...new Set(events.map((event) => String(event.org_id)))];
         const organizers = await Organizer.find({ _id: { $in: organizerIds } }).select('org_name');
@@ -85,11 +103,10 @@ const getBrowsableEvents = async (req, res) => {
             trending_count_24h: trendingMap[String(event._id)] || 0
         }));
         if (q) {
-            const rx = new RegExp(q, 'i');
             enrichedEvents = enrichedEvents.filter((event) =>
-                rx.test(event.event_name || '') ||
-                rx.test(event.organizer_name || '') ||
-                rx.test(Array.isArray(event.event_tag) ? event.event_tag.join(' ') : String(event.event_tag || ''))
+                fuzzyMatch(event.event_name || '', q) ||
+                fuzzyMatch(event.organizer_name || '', q) ||
+                fuzzyMatch(Array.isArray(event.event_tag) ? event.event_tag.join(' ') : String(event.event_tag || ''), q)
             );
         }
         const followedSet = new Set((participant.orgs_of_interests || []).map(String));
@@ -191,7 +208,7 @@ const registerForEvent = async (req, res) => {
                 participant.email, // Ensure your Participant model has this field
                 event.event_name, 
                 { 
-                    ticket_id: ticketId, 
+                    ticketId, 
                     type: 'Normal',
                     participantName: `${participant.first_name} ${participant.last_name}`
                 }

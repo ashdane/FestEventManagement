@@ -1,4 +1,10 @@
 const Organizer = require('../models/Organizer');
+const Event = require('../models/Events');
+const Ticket = require('../models/Ticket');
+const Participant = require('../models/Participant');
+const ResetRequest = require('../models/ResetRequest');
+const ForumMessage = require('../models/ForumMessage');
+const AttendanceAudit = require('../models/AttendanceAudit');
 const crypto = require('crypto');
 const slug = (s = '') => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 10) || 'org';
 const genPassword = () => crypto.randomBytes(6).toString('base64url').slice(0, 10);
@@ -66,9 +72,27 @@ const archiveOrg = async (req, res) => {
 const removeOrg = async (req, res) => {
     try {
         const { organizerId } = req.params;
-        const organizer = await Organizer.findByIdAndDelete(organizerId);
+        const organizer = await Organizer.findById(organizerId).select('_id');
         if (!organizer) return res.status(404).json({ error: 'Organizer not found' });
-        return res.status(200).json({ message: 'Organizer deleted permanently' });
+        const eventIds = (await Event.find({ org_id: organizerId }).select('_id')).map((e) => e._id);
+        await Promise.all([
+            Event.deleteMany({ org_id: organizerId }),
+            Ticket.deleteMany({ eventId: { $in: eventIds } }),
+            ForumMessage.deleteMany({ eventId: { $in: eventIds } }),
+            AttendanceAudit.deleteMany({ eventId: { $in: eventIds } }),
+            ResetRequest.deleteMany({ organizerId }),
+            Participant.updateMany(
+                {},
+                {
+                    $pull: {
+                        orgs_of_interests: organizerId,
+                        registrations: { event_id: { $in: eventIds } }
+                    }
+                }
+            ),
+            Organizer.deleteOne({ _id: organizerId })
+        ]);
+        return res.status(200).json({ message: 'Organizer deleted permanently with associated data cleanup' });
     } catch (error) {
         return res.status(500).json({ error: error.message });
     }
