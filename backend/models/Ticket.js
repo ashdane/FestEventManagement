@@ -32,6 +32,10 @@ const ticketSchema = new mongoose.Schema({
         qty: Number,
         paymentProofUrl: String // Cloudinary URL
     },
+    formResponses: {
+        type: mongoose.Schema.Types.Mixed,
+        default: {}
+    },
     attendance: {
         scanned: { type: Boolean, default: false },
         scannedAt: { type: Date }

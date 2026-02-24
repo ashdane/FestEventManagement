@@ -7,6 +7,12 @@ const buyMerch = async (req, res) => {
         const { eventId, size, color } = req.body;
         const qtyRequested = Number(req.body.qty || req.body.quantity || 1);
         const participantId = req.user.id; 
+        let formResponses = {};
+        try {
+            formResponses = req.body.formResponses ? JSON.parse(req.body.formResponses) : {};
+        } catch {
+            formResponses = {};
+        }
 
         const event = await Events.findById(eventId);
 
@@ -62,7 +68,8 @@ const buyMerch = async (req, res) => {
                 color, 
                 qty: qtyRequested, 
                 paymentProofUrl: req.file.path 
-            }
+            },
+            formResponses
         });
 
         return res.status(201).json({ 

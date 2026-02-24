@@ -30,7 +30,7 @@ const EventDetails = () => {
         try {
             const isMerch = data?.event?.event_type === 'Merchandise';
             const formFields = data?.event?.event_registration_form || [];
-            if (!isMerch && formFields.length) {
+            if (formFields.length) {
                 const missing = formFields.find((f) => f.required && !String(formValues?.[f.fieldName] ?? '').trim());
                 if (missing) return alert(`Please fill required field: ${missing.fieldName}`);
             }
@@ -40,7 +40,8 @@ const EventDetails = () => {
                     size: merch.size,
                     color: merch.color,
                     quantity: Number(merch.quantity || 1),
-                    paymentProof: merch.paymentProof
+                    paymentProof: merch.paymentProof,
+                    formResponses: JSON.stringify(formValues)
                 })
                 : await EVENT_SERVICE.registerForEvent(token, eventId, { formResponses: formValues });
             alert(isMerch ? `Order placed. Status: Pending Approval` : `Registered successfully. Ticket ID: ${payload.ticket_id}`);
@@ -56,7 +57,7 @@ const EventDetails = () => {
     if (loading) return <div style={{ padding: '20px' }}><TopNav /><p>Loading event details...</p></div>;
     if (!data) return <div style={{ padding: '20px' }}><TopNav /><p>Event not found.</p></div>;
     const { event, canRegister, blockingReason, myRegistration } = data;
-    const fields = event.event_type === 'Normal' ? (event.event_registration_form || []) : [];
+    const fields = event.event_registration_form || [];
     const setField = (key, val) => setFormValues((p) => ({ ...p, [key]: val }));
     return (
         <div style={{ padding: '20px' }}>
@@ -73,9 +74,9 @@ const EventDetails = () => {
             <p><strong>Current Registrations:</strong> {event.active_registrations}</p>
             <p><strong>Eligibility:</strong> {event.eligibility}</p>
             {myRegistration && <p><strong>Your Ticket:</strong> {myRegistration.ticket_id} ({myRegistration.participation_status})</p>}
-            {event.event_type === 'Normal' && !!fields.length && (
+            {!!fields.length && (
                 <div className="card" style={{ marginBottom: '12px' }}>
-                    <h3>Registration Form</h3>
+                    <h3>{event.event_type === 'Merchandise' ? 'Additional Details Form' : 'Registration Form'}</h3>
                     {fields.map((f) => (
                         <div key={f._id || f.fieldName} style={{ marginBottom: '8px' }}>
                             <label>{f.fieldName}{f.required ? ' *' : ''}</label>
