@@ -22,17 +22,15 @@ const PPTDash = () => {
     const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
     const [reminderMinutes, setReminderMinutes] = useState(30);
     const [calendarLinks, setCalendarLinks] = useState([]);
+    const [selectedEventIds, setSelectedEventIds] = useState([]);
     const token = localStorage.getItem('token');
     const fetchDashboard = async () => {
-        const res = await fetch('/api/events/my-dashboard', {
-            headers: { Authorization: `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (!res.ok) {
-            throw new Error(data.error || 'Failed to load dashboard');
-        }
+        const data = await EVENT_SERVICE.getMyEventsDashboard(token);
         setDashboard(data);
-        const linksData = await EVENT_SERVICE.getCalendarLinks(token, { timezone, reminderMinutes });
+        const linksData = await EVENT_SERVICE.getCalendarLinks(token, {
+            timezone: timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+            reminderMinutes
+        });
         setCalendarLinks(linksData.links || []);
     };
     useEffect(() => {
@@ -66,6 +64,17 @@ const PPTDash = () => {
             alert('Failed to export calendar');
         }
     };
+    const toggleSelected = (eventId) => {
+        setSelectedEventIds((prev) =>
+            prev.includes(String(eventId))
+                ? prev.filter((id) => id !== String(eventId))
+                : [...prev, String(eventId)]
+        );
+    };
+    const selectAllUpcoming = () => {
+        setSelectedEventIds((dashboard.upcomingEvents || []).map((e) => String(e.event_id)));
+    };
+    const clearSelection = () => setSelectedEventIds([]);
     const openLink = (url) => window.open(url, '_blank');
     const ticketClick = async (ticketId) => {
         try {
@@ -77,25 +86,34 @@ const PPTDash = () => {
     };
     const historyList = dashboard.participationHistory?.[activeTab] || [];
     return (
-        <div className="pptdash-container">
+        <div className="pptdash-container" style={{ padding: '20px' }}>
             <TopNav />
-            <h1>My Events Dashboard</h1>
             {isLoading && <p>Loading dashboard...</p>}
             {!isLoading && (
                 <div className="my-events-grid">
                     <div className="my-events-box">
                         <h2>Upcoming Events</h2>
                         <div className="row">
-                            <input value={timezone} onChange={(e) => setTimezone(e.target.value)} placeholder="Timezone (e.g. Asia/Kolkata)" />
+                            <input value={timezone} onChange={(e) => setTimezone(e.target.value)} placeholder="Timezone (auto-detected)" />
                             <input type="number" value={reminderMinutes} onChange={(e) => setReminderMinutes(Number(e.target.value) || 0)} placeholder="Reminder mins" />
                             <button type="button" onClick={() => fetchDashboard().catch((e) => alert(e.message))}>Refresh Links</button>
                             <button type="button" onClick={() => downloadIcs()}>Export All .ics</button>
+                            <button type="button" onClick={selectAllUpcoming}>Select All</button>
+                            <button type="button" onClick={clearSelection}>Clear</button>
+                            <button type="button" onClick={() => downloadIcs(selectedEventIds)} disabled={!selectedEventIds.length}>Export Selected .ics</button>
                         </div>
                         {dashboard.upcomingEvents.length === 0 ? (
                             <p>No upcoming registered events.</p>
                         ) : (
                             dashboard.upcomingEvents.map((item) => (
                                 <div key={item.ticket_id} style={{ borderTop: '1px solid #eee', paddingTop: '8px', marginTop: '8px' }}>
+                                    <label>
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedEventIds.includes(String(item.event_id))}
+                                            onChange={() => toggleSelected(item.event_id)}
+                                        /> Select for batch export
+                                    </label>
                                     <p><strong>{item.event_name}</strong></p>
                                     <p>Type: {item.event_type}</p>
                                     <p>Organizer: {item.organizer}</p>

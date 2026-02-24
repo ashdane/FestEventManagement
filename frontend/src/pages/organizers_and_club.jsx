@@ -73,7 +73,6 @@ const OrganizersAndClubs = () => {
     return (
         <div style={{ padding: '20px' }}>
             <TopNav />
-            <h1>Clubs / Organizers</h1>
             <div
                 style={{
                     maxHeight: '70vh',

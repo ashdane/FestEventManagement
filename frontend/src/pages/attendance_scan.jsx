@@ -1,19 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import useLogout from '../hooks/useLogout';
 import useVerifyRoles from '../hooks/useVerifyRoles';
 import EVENT_SERVICE from '../services/eventServices';
+import OrgTopNav from '../assets/OrgTopNav';
+
 const AttendanceScan = () => {
     const token = localStorage.getItem('token');
-    const navigate = useNavigate();
     const { token_verification } = useVerifyRoles();
-    const { LogoutLogic } = useLogout();
     const [events, setEvents] = useState([]);
     const [eventId, setEventId] = useState('');
     const [ticketId, setTicketId] = useState('');
     const [dash, setDash] = useState({ stats: {}, scanned: [], pending: [] });
     const [audit, setAudit] = useState([]);
     const chosen = useMemo(() => events.find((e) => String(e._id) === String(eventId)), [events, eventId]);
+    
     const load = async (id = eventId) => {
         if (!id) return;
         const [d, a] = await Promise.all([
@@ -25,13 +24,13 @@ const AttendanceScan = () => {
     };
     useEffect(() => {
         const role = token_verification(token);
-        if (role !== 'OGR') return LogoutLogic();
+        if (role !== 'OGR') return;
         EVENT_SERVICE.getOrganizerEvents(token).then((d) => {
             const list = (d.events || []).filter((e) => ['ONGOING', 'PUBLISHED'].includes(e.status));
             setEvents(list);
             if (list[0]) setEventId(list[0]._id);
         }).catch((e) => alert(e.message));
-    }, [token, token_verification, LogoutLogic]);
+    }, [token, token_verification]);
     useEffect(() => {
         if (!eventId) return;
         load(eventId).catch(() => {});
@@ -82,11 +81,8 @@ const AttendanceScan = () => {
     };
     return (
         <div className="page">
+            <OrgTopNav />
             <h1>Attendance Scanner</h1>
-            <div className="row">
-                <button type="button" onClick={() => navigate('/orgdash')}>Back to Organizer Dashboard</button>
-                <button type="button" onClick={LogoutLogic}>Logout</button>
-            </div>
             <div className="card">
                 <select value={eventId} onChange={(e) => setEventId(e.target.value)}>
                     <option value="">Select event</option>

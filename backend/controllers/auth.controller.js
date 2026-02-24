@@ -10,7 +10,7 @@ const signup = async (req, res) => {
     try{
         const { usertype, participant_type, first_name, last_name, email, org_name, phone_number, password } = req.body
         if(participant_type == 'ITST' && !email.endsWith('@students.iiit.ac.in') && !email.endsWith('@research.iiit.ac.in'))
-            return res.status(400).json({ error: 'Please enter your student institute ID!'}) //400: Bad Request // you have to return it, without returning, it keeps going on
+            return res.status(400).json({ message: 'Please enter your student institute ID!'}) //400: Bad Request // you have to return it, without returning, it keeps going on
         const participant = new Participant({ role: 'PPT', participant_type, first_name, last_name, email, org_name, phone_number, password })
         await participant.save()
         const participant_token = make_token(participant._id, participant.role, participant.participant_type)

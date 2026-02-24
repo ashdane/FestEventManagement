@@ -3,6 +3,24 @@ const { Event, Organizer, Participant, ACTIVE_STATUSES, isRegOpen, isPPTelig, ge
 const { sendTicketMail } = require('../utils/mailer');
 const esc = (v = '') => String(v).replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;');
 const stamp = (d) => new Date(d).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+const validTimezone = (tz) => {
+    try {
+        if (!tz) return false;
+        Intl.DateTimeFormat('en-US', { timeZone: tz }).format(new Date());
+        return true;
+    } catch {
+        return false;
+    }
+};
+const resolveTimezone = (req) => {
+    const candidate = req.query.timezone || req.headers['x-timezone'];
+    return validTimezone(candidate) ? candidate : 'UTC';
+};
+const normalizeReminder = (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return 30;
+    return Math.max(0, Math.min(1440, Math.round(n)));
+};
 const linksFor = (event, timezone = 'UTC', reminderMinutes = 30) => {
     const title = event.event_name || 'Event';
     const details = `${event.event_description || ''}\nReminder: ${reminderMinutes} minutes before`;
@@ -247,11 +265,15 @@ const getMyCalendarLinks = async (req, res) => {
         const participant = await Participant.findById(req.user.id).select('registrations.event_id');
         if (!participant)
             return res.status(404).json({ error: 'Participant not found' });
-        const ids = (participant.registrations || []).map((r) => r.event_id).filter(Boolean);
+        const requested = (req.query.eventIds || '').split(',').map((id) => id.trim()).filter(Boolean);
+        const registered = new Set((participant.registrations || []).map((r) => String(r.event_id)));
+        const ids = (requested.length ? requested.filter((id) => registered.has(id)) : [...registered]).filter(Boolean);
         const events = await Event.find({ _id: { $in: ids } }).select('event_name event_description event_start event_end');
-        const timezone = req.query.timezone || 'UTC';
-        const reminderMinutes = Number(req.query.reminderMinutes || 30);
+        const timezone = resolveTimezone(req);
+        const reminderMinutes = normalizeReminder(req.query.reminderMinutes);
         return res.status(200).json({
+            timezone,
+            reminderMinutes,
             links: events.map((event) => ({ event_id: event._id, event_name: event.event_name, ...linksFor(event, timezone, reminderMinutes) }))
         });
     } catch (error) {
@@ -267,9 +289,12 @@ const exportCalendarIcs = async (req, res) => {
         const registered = new Set((participant.registrations || []).map((r) => String(r.event_id)));
         const ids = requested.length ? requested.filter((id) => registered.has(id)) : [...registered];
         const events = await Event.find({ _id: { $in: ids } }).select('event_name event_description event_start event_end');
+        const reminderMinutes = normalizeReminder(req.query.reminderMinutes);
+        const timezone = resolveTimezone(req);
         res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
         res.setHeader('Content-Disposition', 'attachment; filename="fems-events.ics"');
-        return res.status(200).send(icsFor(events, Number(req.query.reminderMinutes || 30)));
+        res.setHeader('X-Calendar-Timezone', timezone);
+        return res.status(200).send(icsFor(events, reminderMinutes));
     } catch (error) {
         return res.status(500).json({ error: error.message });
     }

@@ -39,7 +39,7 @@ const Profile = () => {
     }, []);
     useEffect(() => {
         const role = token_verification(token);
-        if (role !== 'PPT') {
+        if (role !== 'PPT' && role != 'OGR') {
             LogoutLogic();
             return;
         }
@@ -89,7 +89,6 @@ const Profile = () => {
     return (
         <div style={{ padding: '20px' }}>
             <TopNav />
-            <h1>Profile</h1>
             <form onSubmit={saveProfile} style={{ display: 'grid', gap: '10px', maxWidth: '500px' }}>
                 <input name="first_name" value={profile.first_name} onChange={handleInput} placeholder="First Name" />
                 <input name="last_name" value={profile.last_name} onChange={handleInput} placeholder="Last Name" />

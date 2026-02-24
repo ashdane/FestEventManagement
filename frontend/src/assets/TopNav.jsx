@@ -4,7 +4,7 @@ const TopNav = () => {
   const { LogoutLogic } = useLogout();
   return (
     <nav className="topnav">
-      <NavLink to="/pptdash" className={({ isActive }) => (isActive ? 'active' : '')}>Dashboard</NavLink>
+      <NavLink to="/pptdash" className={({ isActive }) => (isActive ? 'active' : '')}>Dashboard (My Events)</NavLink>
       <NavLink to="/browse_events" className={({ isActive }) => (isActive ? 'active' : '')}>Browse Events</NavLink>
       <NavLink to="/profile" className={({ isActive }) => (isActive ? 'active' : '')}>Profile</NavLink>
       <NavLink to="/organizers_and_clubs" className={({ isActive }) => (isActive ? 'active' : '')}>Organizers/Clubs</NavLink>

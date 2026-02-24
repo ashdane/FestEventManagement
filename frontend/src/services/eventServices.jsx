@@ -43,13 +43,16 @@ const browseEvents = async (token, filters = {}) => {
     const queryString = HTTP_CLIENT.buildQueryString(filters);
     return HTTP_CLIENT.request(`/api/events${queryString}`, { token });
 };
+const getMyEventsDashboard = async (token) => {
+    return HTTP_CLIENT.request('/api/events/my-dashboard', { token });
+};
 const getCalendarLinks = async (token, options = {}) => {
     const queryString = HTTP_CLIENT.buildQueryString(options);
     return HTTP_CLIENT.request(`/api/events/calendar/links${queryString}`, { token });
 };
 const getCalendarIcsUrl = (options = {}) => {
     const queryString = HTTP_CLIENT.buildQueryString(options);
-    return `/api/events/calendar/export.ics${queryString}`;
+    return HTTP_CLIENT.buildUrl(`/api/events/calendar/export.ics${queryString}`);
 };
 const getForum = async (token, eventId, options = {}) => {
     const qs = HTTP_CLIENT.buildQueryString(options);
@@ -94,6 +97,7 @@ export default {
     getEventRegistrationForm,
     saveEventRegistrationForm,
     browseEvents,
+    getMyEventsDashboard,
     getForum,
     postForum,
     reactForum,

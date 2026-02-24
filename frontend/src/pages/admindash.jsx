@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import useLogout from '../hooks/useLogout';
 import useVerifyRoles from '../hooks/useVerifyRoles';
+import AdminTopNav from '../assets/AdminTopNav';
 const AdminDash = () => {
     const { token_verification } = useVerifyRoles();
     const { LogoutLogic } = useLogout();
@@ -10,6 +11,7 @@ const AdminDash = () => {
     const [organizers, setOrganizers] = useState([]);
     const [newOrg, setNewOrg] = useState({ org_name: '', category: '', description: '' });
     const [lastCreds, setLastCreds] = useState(null);
+    const [activeView, setActiveView] = useState('resets');
     const api = async (url, options = {}) => {
         const res = await fetch(url, {
             ...options,
@@ -51,44 +53,52 @@ const AdminDash = () => {
     return (
         <div className="page">
             <h1>ADMIN DASHBOARD</h1>
-            <button type="button" onClick={LogoutLogic}>Logout</button>
-            <h2>Reset Requests (Pending)</h2>
-            {(pending || []).map((r) => (
-                <div key={r._id} className="card">
-                    <p><strong>{r.organizerId?.org_name || 'Organizer'}</strong> - {r.reason}</p>
-                    <div className="row">
-                        <button type="button" onClick={() => act('approve', r._id)}>Approve</button>
-                        <button type="button" onClick={() => act('reject', r._id)}>Reject</button>
-                    </div>
-                </div>
-            ))}
-            <h2>Reset History</h2>
-            {(history || []).map((r) => (
-                <div key={r._id} className="card">
-                    <p>{r.organizerId?.org_name || 'Organizer'} - {r.status}</p>
-                    <p>{r.adminComments || '-'}</p>
-                </div>
-            ))}
-            <h2>Organizer Management</h2>
-            <form onSubmit={createOrg} className="row">
-                <input value={newOrg.org_name} placeholder="Org name" onChange={(e) => setNewOrg((p) => ({ ...p, org_name: e.target.value }))} />
-                <input value={newOrg.category} placeholder="Category (optional)" onChange={(e) => setNewOrg((p) => ({ ...p, category: e.target.value }))} />
-                <input value={newOrg.description} placeholder="Description (optional)" onChange={(e) => setNewOrg((p) => ({ ...p, description: e.target.value }))} />
-                <button type="submit">Create</button>
-            </form>
-            {lastCreds && <p className="card">Generated credentials: {lastCreds.email} / {lastCreds.password}</p>}
-            {(organizers || []).map((o) => (
-                <div key={o._id} className="card">
-                    <p><strong>{o.org_name}</strong> ({o.email})</p>
-                    <p>enabled: {String(o.enabled)} | archived: {String(o.archived)}</p>
-                    <div className="row">
-                        <button type="button" onClick={() => orgAct('disable', o._id)}>Disable</button>
-                        <button type="button" onClick={() => orgAct('enable', o._id)}>Enable</button>
-                        <button type="button" onClick={() => orgAct('archive', o._id)}>Archive</button>
-                        <button type="button" onClick={() => orgAct('delete', o._id)}>Delete</button>
-                    </div>
-                </div>
-            ))}
+            <AdminTopNav activeView={activeView} onChangeView={setActiveView} />
+            {activeView === 'resets' && (
+                <>
+                    <h2>Reset Requests (Pending)</h2>
+                    {(pending || []).map((r) => (
+                        <div key={r._id} className="card">
+                            <p><strong>{r.organizerId?.org_name || 'Organizer'}</strong> - {r.reason}</p>
+                            <div className="row">
+                                <button type="button" onClick={() => act('approve', r._id)}>Approve</button>
+                                <button type="button" onClick={() => act('reject', r._id)}>Reject</button>
+                            </div>
+                        </div>
+                    ))}
+                    <h2>Reset History</h2>
+                    {(history || []).map((r) => (
+                        <div key={r._id} className="card">
+                            <p>{r.organizerId?.org_name || 'Organizer'} - {r.status}</p>
+                            <p>{r.adminComments || '-'}</p>
+                        </div>
+                    ))}
+                </>
+            )}
+            {activeView === 'organizers' && (
+                <>
+                    <h2>Organizer Management</h2>
+                    <form onSubmit={createOrg} className="row">
+                        <input value={newOrg.org_name} placeholder="Org name" onChange={(e) => setNewOrg((p) => ({ ...p, org_name: e.target.value }))} />
+                        <input value={newOrg.category} placeholder="Category (optional)" onChange={(e) => setNewOrg((p) => ({ ...p, category: e.target.value }))} />
+                        <input value={newOrg.description} placeholder="Description (optional)" onChange={(e) => setNewOrg((p) => ({ ...p, description: e.target.value }))} />
+                        <button type="submit">Create</button>
+                    </form>
+                    {lastCreds && <p className="card">Generated credentials: {lastCreds.email} / {lastCreds.password}</p>}
+                    {(organizers || []).map((o) => (
+                        <div key={o._id} className="card">
+                            <p><strong>{o.org_name}</strong> ({o.email})</p>
+                            <p>enabled: {String(o.enabled)} | archived: {String(o.archived)}</p>
+                            <div className="row">
+                                <button type="button" onClick={() => orgAct('disable', o._id)}>Disable</button>
+                                <button type="button" onClick={() => orgAct('enable', o._id)}>Enable</button>
+                                <button type="button" onClick={() => orgAct('archive', o._id)}>Archive</button>
+                                <button type="button" onClick={() => orgAct('delete', o._id)}>Delete</button>
+                            </div>
+                        </div>
+                    ))}
+                </>
+            )}
         </div>
     );
 };

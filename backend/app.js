@@ -8,6 +8,14 @@ const adminRoutes = require('./routes/admin.routes');
 const eventRoutes = require('./routes/event.routes');
 const participantRoutes = require('./routes/participant.routes');
 const app = express();
+const allowedOrigin = process.env.CORS_ORIGIN || '*';
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', allowedOrigin);
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    return next();
+});
 app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/home', userRoutes);

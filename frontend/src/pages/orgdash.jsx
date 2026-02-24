@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import useLogout from '../hooks/useLogout';
 import useVerifyRoles from '../hooks/useVerifyRoles';
 import EVENT_SERVICE from '../services/eventServices';
 import HOME_SERVICE from '../services/homeServices';
 import FormBuilder from '../components/events/FormBuilder';
+import OrgTopNav from '../assets/OrgTopNav';
 const VIEWS = { DASHBOARD: 'dashboard', CREATE: 'create', PROFILE: 'profile', ONGOING: 'ongoing' };
 const DEFAULT_DRAFT = {
     event_name: '', event_description: '', event_type: 'Normal', eligibility: 'ALL',
@@ -13,6 +15,7 @@ const EMPTY_ANALYTICS = { completed_events: 0, total_registrations: 0, total_sal
 const OrgDash = () => {
     const { token_verification } = useVerifyRoles();
     const { LogoutLogic } = useLogout();
+    const location = useLocation();
     const token = localStorage.getItem('token');
     const [events, setEvents] = useState([]);
     const [analytics, setAnalytics] = useState(EMPTY_ANALYTICS);
@@ -30,6 +33,10 @@ const OrgDash = () => {
     const [loading, setLoading] = useState(true);
     const selectedEvent = useMemo(() => events.find((e) => e._id === selectedEventId) || null, [events, selectedEventId]);
     const ongoingEvents = useMemo(() => events.filter((e) => e.status === 'ONGOING'), [events]);
+    useEffect(() => {
+        const view = new URLSearchParams(location.search).get('view');
+        if (view && Object.values(VIEWS).includes(view)) setActiveView(view);
+    }, [location.search]);
     const fetchDashboard = useCallback(async () => {
         const data = await EVENT_SERVICE.getOrganizerDashboardSummary(token);
         setEvents(data.events || []);
@@ -126,14 +133,7 @@ const OrgDash = () => {
     return (
         <div className="page">
             <h1>ORGANIZER DASHBOARD</h1>
-            <nav className="row">
-                <button type="button" onClick={() => setActiveView(VIEWS.DASHBOARD)}>Dashboard</button>
-                <button type="button" onClick={() => setActiveView(VIEWS.CREATE)}>Create Event</button>
-                <button type="button" onClick={() => setActiveView(VIEWS.PROFILE)}>Profile</button>
-                <button type="button" onClick={() => setActiveView(VIEWS.ONGOING)}>Ongoing Events</button>
-                <button type="button" onClick={() => { window.location.href = '/attendance_scan'; }}>Attendance Scanner</button>
-                <button type="button" onClick={LogoutLogic}>Logout</button>
-            </nav>
+            <OrgTopNav activeView={activeView} onChangeView={setActiveView} />
             {loading && <p>Loading dashboard...</p>}
             {!loading && activeView === VIEWS.DASHBOARD && (
                 <>

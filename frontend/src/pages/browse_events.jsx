@@ -57,7 +57,6 @@ const BrowseEvents = () => {
     return (
         <div style={{ padding: '20px' }}>
             <TopNav />
-            <h1>Browse Events</h1>
             <form onSubmit={applyFilters} style={{ display: 'grid', gap: '10px', maxWidth: '900px', marginBottom: '20px' }}>
                 <input
                     type="text"
