@@ -95,7 +95,7 @@ const OrgDash = () => {
         try {
             if (type === 'approve') await EVENT_SERVICE.approveMerchandisePayment(token, ticketId);
             else await EVENT_SERVICE.rejectMerchandisePayment(token, ticketId);
-            await Promise.all([fetchDashboard(), loadDetail(eventId, detailFilters)]);
+            await Promise.all([fetchDashboard(), loadDetail(eventId, detailFilters, true)]);
             alert(`Payment ${type}d`);
         } catch (err) { alert(err.message); }
     }, [token, fetchDashboard, loadDetail, detailFilters]);
@@ -226,7 +226,7 @@ const OrgDash = () => {
                                             <select value={detailFilters.status} onChange={(x) => setDetailFilters((f) => ({ ...f, status: x.target.value }))}>
                                                 <option value="">All Status</option><option value="REGISTERED">REGISTERED</option><option value="COMPLETED">COMPLETED</option><option value="CANCELLED">CANCELLED</option><option value="REJECTED">REJECTED</option>
                                             </select>
-                                            <button type="button" onClick={() => loadDetail(e._id, detailFilters)}>Apply</button>
+                                            <button type="button" onClick={() => loadDetail(e._id, detailFilters, true)}>Apply</button>
                                             <button type="button" onClick={exportCsv}>Export CSV</button>
                                         </div>
                                         {detail.event.event_type === 'Merchandise' && (
