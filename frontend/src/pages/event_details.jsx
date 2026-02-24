@@ -104,7 +104,15 @@ const EventDetails = () => {
                                 </div>
                             )}
                             {f.fieldType === 'NUMBER' && <input type="number" value={formValues[f.fieldName] || ''} onChange={(e) => setField(f.fieldName, e.target.value)} />}
-                            {f.fieldType === 'FILE' && <input type="text" placeholder="Paste uploaded file URL" value={formValues[f.fieldName] || ''} onChange={(e) => setField(f.fieldName, e.target.value)} />}
+                            {f.fieldType === 'FILE' && (
+                                <>
+                                    <input
+                                        type="file"
+                                        onChange={(e) => setField(f.fieldName, e.target.files?.[0]?.name || '')}
+                                    />
+                                    {!!formValues[f.fieldName] && <small>Selected: {formValues[f.fieldName]}</small>}
+                                </>
+                            )}
                             {!['DROPDOWN', 'CHECKBOX', 'NUMBER', 'FILE'].includes(f.fieldType) && (
                                 <input type="text" value={formValues[f.fieldName] || ''} onChange={(e) => setField(f.fieldName, e.target.value)} />
                             )}

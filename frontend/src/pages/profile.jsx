@@ -85,6 +85,11 @@ const Profile = () => {
             alert(error.message || 'Password change failed');
         }
     };
+    const participantTypeLabel = profile.participant_type === 'ITST'
+        ? 'IIIT'
+        : profile.participant_type === 'NITST'
+            ? 'NON_IIIT'
+            : (profile.participant_type || 'Not set');
     return (
         <div style={{ padding: '20px' }}>
             <TopNav />
@@ -94,6 +99,7 @@ const Profile = () => {
                 <input name="phone_number" value={profile.phone_number} onChange={handleInput} placeholder="Contact Number" />
                 <input name="org_name" value={profile.org_name} onChange={handleInput} placeholder="College / Organization" />
                 <input value={profile.email} readOnly placeholder="Email" />
+                <input value={participantTypeLabel} readOnly placeholder="Participant Type" />
                 <label>Selected Interests</label>
                 <select multiple value={profile.areas_of_interests} onChange={(e) => handleMultiSelect(e, 'areas_of_interests')}>
                     <option value="TECH_EVENTS">Tech</option>

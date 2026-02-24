@@ -70,9 +70,13 @@ const OrgDash = () => {
     const createDraft = useCallback(async (e) => {
         e.preventDefault();
         const csvToArr = (v) => String(v || '').split(',').map((x) => x.trim()).filter(Boolean);
+        const toIso = (v) => (v ? new Date(v).toISOString() : v);
         const payload = draftData.event_type === 'Merchandise'
             ? {
                 ...draftData,
+                reg_deadline: toIso(draftData.reg_deadline),
+                event_start: toIso(draftData.event_start),
+                event_end: toIso(draftData.event_end),
                 stockqty: Number(draftData.stockqty || 0),
                 merchandiseDetails: {
                     sizes: csvToArr(draftData.merch_sizes),
@@ -80,17 +84,41 @@ const OrgDash = () => {
                     purchaseLimitPerParticipant: Number(draftData.purchaseLimitPerParticipant || 1)
                 }
             }
-            : draftData;
+            : {
+                ...draftData,
+                reg_deadline: toIso(draftData.reg_deadline),
+                event_start: toIso(draftData.event_start),
+                event_end: toIso(draftData.event_end)
+            };
         delete payload.merch_sizes;
         delete payload.merch_colors;
         delete payload.purchaseLimitPerParticipant;
-        try { await EVENT_SERVICE.createEventDraft(token, payload); setDraftData(DEFAULT_DRAFT); await fetchDashboard(); alert('Draft created'); } catch (err) { alert(err.message); }
+        try {
+            await EVENT_SERVICE.createEventDraft(token, payload);
+            setDraftData(DEFAULT_DRAFT);
+            await fetchDashboard();
+            alert('Draft created');
+        } catch (err) {
+            alert(err.message);
+        }
     }, [token, draftData, fetchDashboard]);
     const updateEvent = useCallback(async (eventId, payload) => {
-        try { await EVENT_SERVICE.updateOrganizerEvent(token, eventId, payload); await fetchDashboard(); alert('Event updated'); } catch (err) { alert(err.message); }
+        try {
+            await EVENT_SERVICE.updateOrganizerEvent(token, eventId, payload);
+            await fetchDashboard();
+            alert('Event updated');
+        } catch (err) {
+            alert(err.message);
+        }
     }, [token, fetchDashboard]);
     const publishEvent = useCallback(async (eventId) => {
-        try { await EVENT_SERVICE.publishEvent(token, eventId); await fetchDashboard(); alert('Event published'); } catch (err) { alert(err.message); }
+        try {
+            await EVENT_SERVICE.publishEvent(token, eventId);
+            await fetchDashboard();
+            alert('Event published');
+        } catch (err) {
+            alert(err.message);
+        }
     }, [token, fetchDashboard]);
     const moderateMerch = useCallback(async (type, ticketId, eventId) => {
         try {
@@ -98,11 +126,19 @@ const OrgDash = () => {
             else await EVENT_SERVICE.rejectMerchandisePayment(token, ticketId);
             await Promise.all([fetchDashboard(), loadDetail(eventId, detailFilters, true)]);
             alert(`Payment ${type}d`);
-        } catch (err) { alert(err.message); }
+        } catch (err) {
+            alert(err.message);
+        }
     }, [token, fetchDashboard, loadDetail, detailFilters]);
     const saveProfile = async (e) => {
         e.preventDefault();
-        try { await HOME_SERVICE.update_org_details(token, profile); alert('Profile saved'); await loadProfile(); } catch (err) { alert(err.message); }
+        try {
+            await HOME_SERVICE.update_org_details(token, profile);
+            alert('Profile saved');
+            await loadProfile();
+        } catch (err) {
+            alert(err.message);
+        }
     };
     const submitReset = async (e) => {
         e.preventDefault();
@@ -112,7 +148,9 @@ const OrgDash = () => {
             setResetReason('');
             await loadProfile();
             alert('Reset request submitted');
-        } catch (err) { alert(err.message); }
+        } catch (err) {
+            alert(err.message);
+        }
     };
     const exportCsv = async () => {
         if (!selectedEventId) return;
@@ -172,9 +210,9 @@ const OrgDash = () => {
                             <textarea name="event_description" value={draftData.event_description} placeholder="Description" onChange={(e) => setDraftData((p) => ({ ...p, event_description: e.target.value }))} required />
                             <label>Event Type<select name="event_type" value={draftData.event_type} onChange={(e) => setDraftData((p) => ({ ...p, event_type: e.target.value }))}><option value="Normal">Normal</option><option value="Merchandise">Merchandise</option></select></label>
                             <label>Eligibility<select name="eligibility" value={draftData.eligibility} onChange={(e) => setDraftData((p) => ({ ...p, eligibility: e.target.value }))}><option value="ALL">All</option><option value="IIIT">IIIT</option><option value="NON_IIIT">Non-IIIT</option></select></label>
-                            <label>Registration Deadline<input type="date" name="reg_deadline" value={draftData.reg_deadline} onChange={(e) => setDraftData((p) => ({ ...p, reg_deadline: e.target.value }))} required /></label>
-                            <label>Event Start Date<input type="date" name="event_start" value={draftData.event_start} onChange={(e) => setDraftData((p) => ({ ...p, event_start: e.target.value }))} required /></label>
-                            <label>Event End Date<input type="date" name="event_end" value={draftData.event_end} onChange={(e) => setDraftData((p) => ({ ...p, event_end: e.target.value }))} required /></label>
+                            <label>Registration Deadline<input type="datetime-local" name="reg_deadline" value={draftData.reg_deadline} onChange={(e) => setDraftData((p) => ({ ...p, reg_deadline: e.target.value }))} required /></label>
+                            <label>Event Start Date & Time<input type="datetime-local" name="event_start" value={draftData.event_start} onChange={(e) => setDraftData((p) => ({ ...p, event_start: e.target.value }))} required /></label>
+                            <label>Event End Date & Time<input type="datetime-local" name="event_end" value={draftData.event_end} onChange={(e) => setDraftData((p) => ({ ...p, event_end: e.target.value }))} required /></label>
                             <label>Registration Limit<input type="number" name="reg_limit" value={draftData.reg_limit} onChange={(e) => setDraftData((p) => ({ ...p, reg_limit: Number(e.target.value) }))} required /></label>
                             <label>Registration Fee (INR)<input type="number" name="reg_fee" value={draftData.reg_fee} onChange={(e) => setDraftData((p) => ({ ...p, reg_fee: Number(e.target.value) }))} required /></label>
                             {draftData.event_type === 'Merchandise' && <>
@@ -268,7 +306,16 @@ const OrgDash = () => {
                 </>
             )}
             {!loading && activeView === VIEWS.ONGOING && (
-                <div className="card"><h2>Ongoing Events</h2>{ongoingEvents.length ? ongoingEvents.map((e) => <p key={e._id}>{e.event_name} ({e.event_type}) - {e.status}</p>) : <p>No ongoing events right now.</p>}</div>
+                <div className="card">
+                    <h2>Ongoing Events</h2>
+                    {ongoingEvents.length
+                        ? ongoingEvents.map((e) => (
+                            <p key={e._id}>
+                                {e.event_name} ({e.event_type}) - {e.status}
+                            </p>
+                        ))
+                        : <p>No ongoing events right now.</p>}
+                </div>
             )}
             {!loading && activeView === VIEWS.PROFILE && (
                 <div className="card">
@@ -288,7 +335,12 @@ const OrgDash = () => {
                         <input value={resetReason} onChange={(e) => setResetReason(e.target.value)} placeholder="Reason for reset" />
                         <button type="submit">Request Reset</button>
                     </form>
-                    {(resetHistory || []).map((r) => <p key={r._id}>{new Date(r.createdAt).toLocaleString()} - {r.status}{r.adminComments ? ` (${r.adminComments})` : ''}</p>)}
+                    {(resetHistory || []).map((r) => (
+                        <p key={r._id}>
+                            {new Date(r.createdAt).toLocaleString()} - {r.status}
+                            {r.adminComments ? ` (${r.adminComments})` : ''}
+                        </p>
+                    ))}
                 </div>
             )}
         </div>

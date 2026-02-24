@@ -4,6 +4,7 @@ const RegistrationSchema = new mongoose.Schema(
     {
         event_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Events', required: true },
         ticket_id: { type: String, required: true },
+        form_responses: { type: mongoose.Schema.Types.Mixed, default: {} },
         participation_status: {
             type: String,
             enum: ['REGISTERED', 'COMPLETED', 'CANCELLED', 'REJECTED'],

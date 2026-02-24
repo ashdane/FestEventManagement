@@ -215,6 +215,9 @@ const registerForEvent = async (req, res) => {
             return res.status(400).json({ error: 'Registrations are full!' });
         const ticketId = `TKT-${event._id.toString().slice(-6).toUpperCase()}-${participant._id.toString()
             .slice(-6).toUpperCase()}`;
+        const formResponses = req.body?.formResponses && typeof req.body.formResponses === 'object'
+            ? req.body.formResponses
+            : {};
         const updated = await Participant.findOneAndUpdate(
             {
                 _id: req.user.id,
@@ -225,6 +228,7 @@ const registerForEvent = async (req, res) => {
                     registrations: {
                         event_id: event._id,
                         ticket_id: ticketId,
+                        form_responses: formResponses,
                         participation_status: 'REGISTERED',
                         team_name: req.body.team_name || 'N/A'
                     }

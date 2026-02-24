@@ -16,9 +16,19 @@ const buildParticipants = async (eventId, regFee, q, status) => {
 const maybePostDiscord = async (organizerId, event) => {
     try {
         const organizer = await Organizer.findById(organizerId).select('discord_webhook_url org_name');
-        if (!organizer?.discord_webhook_url) return;
-        await fetch(organizer.discord_webhook_url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: `New event published by ${organizer.org_name}: ${event.event_name} (${new Date(event.event_start).toLocaleString()})` }) });
-    } catch (_) {}
+        if (!organizer?.discord_webhook_url) {
+            return;
+        }
+        await fetch(organizer.discord_webhook_url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                content: `New event published by ${organizer.org_name}: ${event.event_name} (${new Date(event.event_start).toLocaleString()})`
+            })
+        });
+    } catch (_) {
+        // Swallow webhook errors to avoid blocking event publication.
+    }
 };
 const buildMerchOrders = async (eventId, q, status) => {
     const rx = q ? new RegExp(q, 'i') : null;
@@ -101,7 +111,14 @@ const getOrganizerEventDetails = async (req, res) => {
             res.setHeader('Content-Disposition', `attachment; filename="event-${eventId}-participants.csv"`);
             return res.status(200).send(rows.join('\n'));
         }
-        return res.status(200).json({ event: formatOrgEvent(event), registrationsCount: stats.registrationsCount, attendanceCount: stats.attendanceCount, participants, detailAnalytics, merchOrders });
+        return res.status(200).json({
+            event: formatOrgEvent(event),
+            registrationsCount: stats.registrationsCount,
+            attendanceCount: stats.attendanceCount,
+            participants,
+            detailAnalytics,
+            merchOrders
+        });
     } catch (error) {
         return res.status(500).json({ error: error.message });
     }
@@ -202,13 +219,30 @@ const updateEventByOrganizer = async (req, res) => {
     }
 };
 const manageOrganizerEvents = async (req, res) => {
-    if (req.params.eventId) return getOrganizerEventDetails(req, res);
-    if (req.path.includes('/dashboard-summary') || req.query.view === 'dashboard') return getOrganizerDashboardSummary(req, res);
+    if (req.params.eventId) {
+        return getOrganizerEventDetails(req, res);
+    }
+    if (req.path.includes('/dashboard-summary') || req.query.view === 'dashboard') {
+        return getOrganizerDashboardSummary(req, res);
+    }
     return getOrganizerEvents(req, res);
 };
 const manageEventLifecycle = async (req, res) => {
-    if (req.method === 'POST' && !req.params.eventId) return createEventDraft(req, res);
-    if (req.path.includes('/publish') || req.query.action === 'publish' || req.body.action === 'publish') return publishEvent(req, res);
+    if (req.method === 'POST' && !req.params.eventId) {
+        return createEventDraft(req, res);
+    }
+    if (req.path.includes('/publish') || req.query.action === 'publish' || req.body.action === 'publish') {
+        return publishEvent(req, res);
+    }
     return updateEventByOrganizer(req, res);
 };
-module.exports = { createEventDraft, getOrganizerEvents, getOrganizerEventDetails, getOrganizerDashboardSummary, publishEvent, updateEventByOrganizer, manageOrganizerEvents, manageEventLifecycle };
+module.exports = {
+    createEventDraft,
+    getOrganizerEvents,
+    getOrganizerEventDetails,
+    getOrganizerDashboardSummary,
+    publishEvent,
+    updateEventByOrganizer,
+    manageOrganizerEvents,
+    manageEventLifecycle
+};

@@ -1,78 +1,122 @@
 # Felicity Event Management System (FEMS)
 
-MERN-based event management platform for Participants, Organizers, and Admin.
+MERN-based system for participant registration, organizer event management, and admin governance.
 
-## Setup and Run Steps
+## 1) Setup and Local Run
 
 ### Backend
 
 1. `cd backend`
 2. `npm install`
-3. Create local env file from template: `copy .env.example .env` (Windows)
-4. Fill `backend/.env` with valid values:
+3. Create env file:
+   - Windows: `copy .env.example .env`
+4. Fill `backend/.env` with real values:
    - `PORT`
    - `MONGO_URI`
    - `JWT_SECRET`
    - `EMAIL_USER`, `EMAIL_PASS`
    - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
    - `CORS_ORIGIN`
-5. Start backend: `npm start`
+5. Start server:
+   - `npm start`
 
 ### Frontend
 
 1. `cd frontend`
 2. `npm install`
-3. Create local env file from template: `copy .env.example .env` (Windows)
-4. Set `VITE_API_BASE_URL` in `frontend/.env`
-5. Start frontend: `npm run dev`
+3. Create env file:
+   - Windows: `copy .env.example .env`
+4. Set API base URL:
+   - `VITE_API_BASE_URL=<backend_base_url>`
+5. Start frontend:
+   - `npm run dev`
 
-## Deployed URLs
+## 2) Deployment URLs
 
-- Frontend: `https://festeventmanagement.vercel.app`
-- Backend Base API: `https://festeventmanagement-w21b.onrender.com`
+- Frontend URL: `https://festeventmanagement.vercel.app`
+- Backend API base URL: `https://festeventmanagement-w21b.onrender.com`
 
-## Chosen Advanced Features (Tier A / B / C)
+## 3) Libraries, Frameworks, and Modules (with justification)
 
-### Tier A (2 features)
+### Backend
+
+- `express`: REST API routing and middleware pipeline.
+- `mongoose`: schema validation, relations, and MongoDB query layer.
+- `dotenv`: environment configuration for local/deployed environments.
+- `bcrypt`: password hashing for secure storage.
+- `jsonwebtoken`: role-based JWT authentication for protected routes.
+- `multer`: multipart/form-data parsing for uploads.
+- `cloudinary` + `multer-storage-cloudinary`: payment proof and media upload storage.
+- `nodemailer`: registration and ticket-related email delivery.
+- `qrcode`: QR generation for ticket identity/attendance flow.
+- `nodemon` (dev): hot-reload during local backend iteration.
+
+### Frontend
+
+- `react`: component-based UI.
+- `react-router-dom`: role-aware route navigation and page flows.
+- `jwt-decode`: decode token payload for client-side role checks.
+- `jsqr`: fallback QR decode from file when `BarcodeDetector` is unavailable.
+- `vite`: fast local dev server and production build.
+
+## 4) Advanced Features Chosen
+
+### Tier A (2/2 selected)
 
 1. Merchandise Payment Approval Workflow
 2. QR Scanner and Attendance Tracking
 
-### Tier B (2 features)
+### Tier B (2/2 selected)
 
-1. Real-Time Discussion Forum (polling-based updates)
+1. Real-Time Discussion Forum (polling-based implementation)
 2. Organizer Password Reset Workflow
 
-### Tier C (1 feature)
+### Tier C (1/1 selected)
 
 1. Add to Calendar Integration
 
-## Deployment Config
+## 5) Feature Design and Technical Decisions
 
-### Frontend (Vercel)
+### Tier A: Merchandise Payment Approval
 
-- Project root: `frontend`
-- Build command: `npm run build`
-- Output directory: `dist`
-- Environment variable: `VITE_API_BASE_URL=https://festeventmanagement-w21b.onrender.com`
+- Purchase endpoint accepts payment proof upload and creates pending ticket/order.
+- Organizer approval/rejection endpoints drive state transitions.
+- Stock decrement and successful ticket state occur only on approval.
+- QR + confirmation email are generated post-approval only.
 
-### Backend (Render)
+### Tier A: QR Attendance Tracking
 
-- Project root: `backend`
-- Build command: `npm install`
-- Start command: `npm start`
-- Environment variables required:
-  - `PORT`
-  - `MONGO_URI`
-  - `JWT_SECRET`
-  - `EMAIL_USER`, `EMAIL_PASS`
-  - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
-  - `CORS_ORIGIN=https://festeventmanagement.vercel.app`
+- Attendance scan endpoint validates ticket and prevents duplicate check-ins.
+- Attendance page shows total/checked-in/pending metrics.
+- Manual override and audit logging are included for exception handling.
+- CSV export endpoint provides attendance report download.
 
-## Known Limitations and Assumptions
+### Tier B: Discussion Forum
 
-1. QR file scanning prefers browser `BarcodeDetector`; when unavailable, a fallback decoder is used. Manual ticket entry remains available.
-2. Forum updates use polling at interval, not WebSocket transport.
-3. Admin shares generated organizer credentials manually after account creation/reset approval.
-4. Root backend URL may return `Cannot GET /`; API routes are under `/api/*`.
-5. Environment secrets are expected from runtime env files/hosting settings; example values are provided only in `.env.example` files.
+- Event-linked forum with post/reply/reaction support.
+- Organizer moderation includes pin/delete controls.
+- Notification polling endpoint provides new-message indicators.
+- Implemented with HTTP polling instead of socket transport for simplicity and reliability.
+
+### Tier B: Organizer Password Reset Workflow
+
+- Organizer raises reset request with reason.
+- Admin views pending requests and history, approves/rejects with comments.
+- On approval, system generates new password and returns it to admin for manual sharing.
+- Status lifecycle persisted as Pending/Approved/Rejected.
+
+### Tier C: Add to Calendar Integration
+
+- Registered events export as `.ics`.
+- Direct links generated for Google Calendar and Outlook.
+- Supports batch export for selected/all registered events.
+- Reminder minutes and timezone are handled via request params/headers.
+
+## 6) Assumptions and Known Limitations
+
+1. Forum is real-time via short-interval polling, not WebSocket push.
+2. Organizer credentials (created/reset) are manually communicated by admin.
+3. QR camera/file support depends on browser capabilities; manual ticket input is always available.
+4. Backend root may show `Cannot GET /`; evaluation should use `/api/*` routes.
+5. Team-specific analytics/flows are minimal because Hackathon Team Registration was not chosen.
+
