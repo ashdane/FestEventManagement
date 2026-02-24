@@ -11,7 +11,12 @@ const app = express();
 const allowedOrigin = process.env.CORS_ORIGIN || '*';
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', allowedOrigin);
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.header('Vary', 'Origin');
+    const requestedHeaders = req.header('Access-Control-Request-Headers');
+    res.header(
+        'Access-Control-Allow-Headers',
+        requestedHeaders || 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Timezone'
+    );
     res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
     if (req.method === 'OPTIONS') return res.sendStatus(204);
     return next();
