@@ -35,34 +35,34 @@ router.get('/:eventId/forum/notifications', extractUserType, getNotifications);
 router.get('/:eventId', extractUserType, isParticipant, getEventDiscovery);
 router.post('/:eventId/register', extractUserType, isParticipant, handleRegistration);
 router.post(
-    '/merchandise/purchase', 
-    extractUserType, 
-    isParticipant, 
+    '/merchandise/purchase',
+    extractUserType,
+    isParticipant,
     upload.single('paymentProof'), // Intercepts the image, uploads to Cloudinary, attaches req.file.path
     buyMerch
 );
 router.put(
-    '/merchandise/approve/:ticketId', 
-    extractUserType, 
-    isOrganizer, 
+    '/merchandise/approve/:ticketId',
+    extractUserType,
+    isOrganizer,
     approvePayment
 );
 router.put(
-    '/merchandise/reject/:ticketId', 
-    extractUserType, 
-    isOrganizer, 
+    '/merchandise/reject/:ticketId',
+    extractUserType,
+    isOrganizer,
     rejectPayment
 );
 router.put(
-    '/attendance/scan', 
-    extractUserType, 
-    isOrganizer, 
+    '/attendance/scan',
+    extractUserType,
+    isOrganizer,
     scanTicket
 );
 router.get(
-    '/attendance/stats/:eventId', 
-    extractUserType, 
-    isOrganizer, 
+    '/attendance/stats/:eventId',
+    extractUserType,
+    isOrganizer,
     getAttendanceStats
 );
 router.get('/attendance/dashboard/:eventId', extractUserType, isOrganizer, getAttendanceDashboard);

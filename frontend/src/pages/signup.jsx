@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom"
 import AUTH from "../services/authServices"
 const Signup = () => {
         const navigate = useNavigate()
-        const [ state, ChangeState ] = formStates({"usertype": "PPT", "participant_type": "", "first_name": "", "last_name": "", 
+        const [ state, ChangeState ] = formStates({"usertype": "PPT", "participant_type": "ITST", "first_name": "", "last_name": "", 
             "org_name": "", "email": "", "phone_number": "", "password": ""
         })
         const { usertype, participant_type, first_name, last_name, org_name, email, phone_number, password } = state

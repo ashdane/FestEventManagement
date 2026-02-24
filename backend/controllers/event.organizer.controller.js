@@ -1,6 +1,7 @@
 const { Event, formFields, formStatus, formatOrgEvent, getEventStats } = require('./event.shared');
 const Participant = require('../models/Participant');
 const Organizer = require('../models/Organizer');
+const Ticket = require('../models/Ticket');
 const buildParticipants = async (eventId, regFee, q, status) => {
     const docs = await Participant.aggregate([
         { $unwind: '$registrations' },
@@ -18,6 +19,28 @@ const maybePostDiscord = async (organizerId, event) => {
         if (!organizer?.discord_webhook_url) return;
         await fetch(organizer.discord_webhook_url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: `New event published by ${organizer.org_name}: ${event.event_name} (${new Date(event.event_start).toLocaleString()})` }) });
     } catch (_) {}
+};
+const buildMerchOrders = async (eventId, q, status) => {
+    const rx = q ? new RegExp(q, 'i') : null;
+    const orders = await Ticket.find({ eventId, type: 'Merchandise' })
+        .populate('participantId', 'first_name last_name email')
+        .sort({ createdAt: -1 })
+        .lean();
+    return orders
+        .filter((t) => (!status || t.status === status) && (!rx || rx.test(t.ticketId || '') || rx.test(t.participantId?.email || '') || rx.test(`${t.participantId?.first_name || ''} ${t.participantId?.last_name || ''}`)))
+        .map((t) => ({
+            _id: t._id,
+            ticketId: t.ticketId,
+            status: t.status,
+            participantName: `${t.participantId?.first_name || ''} ${t.participantId?.last_name || ''}`.trim(),
+            participantEmail: t.participantId?.email || '',
+            size: t.merchandiseDetails?.size || '',
+            color: t.merchandiseDetails?.color || '',
+            qty: Number(t.merchandiseDetails?.qty || 0),
+            paymentProofUrl: t.merchandiseDetails?.paymentProofUrl || '',
+            createdAt: t.createdAt,
+            attendance: !!t.attendance?.scanned
+        }));
 };
 const createEventDraft = async (req, res) => {
     try {
@@ -44,21 +67,41 @@ const getOrganizerEventDetails = async (req, res) => {
         const event = await Event.findOne({ _id: eventId, org_id: req.user.id });
         if (!event) return res.status(404).json({ error: 'Event not found' });
         const stats = await getEventStats(event._id);
-        const participants = await buildParticipants(event._id, event.reg_fee, q, status);
+        const merchOrders = event.event_type === 'Merchandise' ? await buildMerchOrders(event._id, q, status) : [];
+        const participants = event.event_type === 'Merchandise'
+            ? merchOrders.map((o) => ({
+                name: o.participantName,
+                email: o.participantEmail,
+                regDate: o.createdAt,
+                payment: Number(o.qty || 0) * Number(event.reg_fee || 0),
+                team: 'N/A',
+                attendance: o.attendance,
+                status: o.status,
+                ticket_id: o.ticketId
+            }))
+            : await buildParticipants(event._id, event.reg_fee, q, status);
+        const successfulOrders = merchOrders.filter((o) => o.status === 'Successful');
+        const merchRevenue = successfulOrders.reduce((sum, o) => sum + Number(o.qty || 0) * Number(event.reg_fee || 0), 0);
         const detailAnalytics = {
             registrations: participants.length,
-            sales: participants.filter((p) => ['REGISTERED', 'COMPLETED'].includes(p.status)).length,
-            attendance: participants.filter((p) => p.attendance).length,
+            sales: event.event_type === 'Merchandise' ? successfulOrders.length : participants.filter((p) => ['REGISTERED', 'COMPLETED'].includes(p.status)).length,
+            attendance: event.event_type === 'Merchandise' ? successfulOrders.filter((o) => o.attendance).length : participants.filter((p) => p.attendance).length,
             teamCompletion: participants.filter((p) => p.team && p.team !== 'N/A').length,
-            revenue: participants.length * (event.reg_fee || 0)
+            revenue: event.event_type === 'Merchandise' ? merchRevenue : participants.length * (event.reg_fee || 0)
         };
         if (format === 'csv') {
-            const rows = ['Name,Email,Reg Date,Payment,Team,Attendance,Status,Ticket ID'].concat(participants.map((p) => `"${p.name}","${p.email}","${p.regDate ? new Date(p.regDate).toISOString() : ''}","${p.payment}","${p.team}","${p.attendance ? 'Yes' : 'No'}","${p.status}","${p.ticket_id || ''}"`));
+            const header = event.event_type === 'Merchandise'
+                ? 'Ticket ID,Name,Email,Reg Date,Size,Color,Qty,Status,Payment Proof'
+                : 'Name,Email,Reg Date,Payment,Team,Attendance,Status,Ticket ID';
+            const body = event.event_type === 'Merchandise'
+                ? merchOrders.map((o) => `"${o.ticketId || ''}","${o.participantName || ''}","${o.participantEmail || ''}","${o.createdAt ? new Date(o.createdAt).toISOString() : ''}","${o.size || ''}","${o.color || ''}","${o.qty || 0}","${o.status || ''}","${o.paymentProofUrl || ''}"`)
+                : participants.map((p) => `"${p.name}","${p.email}","${p.regDate ? new Date(p.regDate).toISOString() : ''}","${p.payment}","${p.team}","${p.attendance ? 'Yes' : 'No'}","${p.status}","${p.ticket_id || ''}"`);
+            const rows = [header].concat(body);
             res.setHeader('Content-Type', 'text/csv');
             res.setHeader('Content-Disposition', `attachment; filename="event-${eventId}-participants.csv"`);
             return res.status(200).send(rows.join('\n'));
         }
-        return res.status(200).json({ event: formatOrgEvent(event), registrationsCount: stats.registrationsCount, attendanceCount: stats.attendanceCount, participants, detailAnalytics });
+        return res.status(200).json({ event: formatOrgEvent(event), registrationsCount: stats.registrationsCount, attendanceCount: stats.attendanceCount, participants, detailAnalytics, merchOrders });
     } catch (error) {
         return res.status(500).json({ error: error.message });
     }
@@ -92,6 +135,11 @@ const publishEvent = async (req, res) => {
         const requiredFields = ['event_name', 'event_type', 'eligibility', 'reg_deadline', 'event_start', 'event_end', 'reg_limit', 'reg_fee'];
         for (const field of requiredFields) if (event[field] === undefined || event[field] === null || event[field] === '') return res.status(400).json({ error: `Missing required field: ${field}` });
         if (event.event_type === 'Normal' && (!event.event_registration_form || event.event_registration_form.length === 0)) return res.status(400).json({ error: 'Define registration form fields before publishing a normal event' });
+        if (event.event_type === 'Merchandise') {
+            if (!Array.isArray(event.merchandiseDetails?.sizes) || !event.merchandiseDetails.sizes.length) return res.status(400).json({ error: 'Merchandise sizes are required' });
+            if (!Array.isArray(event.merchandiseDetails?.colors) || !event.merchandiseDetails.colors.length) return res.status(400).json({ error: 'Merchandise colors are required' });
+            if (Number(event.stockqty || 0) < 1) return res.status(400).json({ error: 'Stock quantity must be at least 1' });
+        }
         event.status = 'PUBLISHED';
         await event.save();
         await maybePostDiscord(req.user.id, event);

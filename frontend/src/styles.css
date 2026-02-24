@@ -51,6 +51,36 @@ input,select,textarea{
 .topnav-logout{margin:auto}
 .my-events-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .my-events-box{border:1px solid #ccc;border-radius:8px;padding:12px;background:#fff;min-height:420px}
+.forum-shell{display:grid;grid-template-rows:1fr auto;gap:10px;max-height:70vh}
+.forum-thread{border:1px solid #ccc;border-radius:10px;background:#fff;padding:10px;overflow:auto}
+.chat-msg{max-width:72%;border:1px solid #ddd;background:#f7f7f7;border-radius:10px;padding:8px;margin:8px 0}
+.chat-msg.own{margin-left:auto;background:#e8f5ff}
+.forum-compose{border:1px solid #ccc;border-radius:10px;background:#fff;padding:10px;display:grid;gap:8px}
+.forum-compose textarea{min-height:80px}
+.event-detail-inner{
+    margin-top:12px;
+    padding:18px;
+    border:2px solid #C2B97F;
+    background:linear-gradient(145deg,#b68bb6,#C8A2C8);
+    color:#fff;
+}
+.event-detail-inner h2,.event-detail-inner h3{color:#C2B97F}
+.event-detail-inner p strong{color:#C2B97F}
+.event-detail-inner .card{
+    background:rgba(255,255,255,0.12);
+    border-color:rgba(194,185,127,0.85);
+    color:#fff;
+}
+.event-detail-inner table{
+    background:#fff;
+    color:#1f1f1f;
+    border-collapse:collapse;
+    width:100%;
+}
+.event-detail-inner th,.event-detail-inner td{
+    border:1px solid #ddd;
+    padding:6px 8px;
+}
 /* Center the login card on the screen */
 .login-container {
     display: flex;

@@ -30,7 +30,7 @@ const get_users = async (req, res) => {
 }
 const get_orgs = async (req, res) => {
     try {
-        const organizers = await User.find({ __t: 'Organizer' }).select('org_name description'); //im only checking those rows with _t = Organizer. __t (discriminator key) is something added by mongoose to distruingish rows in case of using discriminators. also we are only retrieing the name and descriptionof those rows
+        const organizers = await User.find({ __t: 'Organizer', enabled: true, archived: { $ne: true } }).select('org_name description category'); //im only checking those rows with _t = Organizer. __t (discriminator key) is something added by mongoose to distruingish rows in case of using discriminators. also we are only retrieing the name and descriptionof those rows
         return res.status(200).json(organizers); // 200: OK
     }
     catch (error) {

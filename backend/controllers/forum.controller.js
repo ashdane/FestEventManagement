@@ -2,13 +2,21 @@ const Event = require('../models/Events');
 const Participant = require('../models/Participant');
 const Organizer = require('../models/Organizer');
 const ForumMessage = require('../models/ForumMessage');
+const Ticket = require('../models/Ticket');
 const canAccessEvent = async (eventId, user) => {
     const event = await Event.findById(eventId).select('org_id');
     if (!event) return { ok: false, status: 404, error: 'Event not found' };
     if (user.role === 'OGR') return String(event.org_id) === String(user.id) ? { ok: true, event } : { ok: false, status: 403, error: 'Unauthorized' };
     const participant = await Participant.findById(user.id).select('registrations.event_id first_name last_name');
     const isRegistered = (participant?.registrations || []).some((r) => String(r.event_id) === String(eventId));
-    return isRegistered ? { ok: true, event, participant } : { ok: false, status: 403, error: 'Register to access forum' };
+    const merchTicket = await Ticket.findOne({
+        participantId: user.id,
+        eventId,
+        type: 'Merchandise',
+        status: { $nin: ['Rejected', 'Cancelled'] }
+    }).select('_id');
+    const hasAccess = isRegistered || !!merchTicket;
+    return hasAccess ? { ok: true, event, participant } : { ok: false, status: 403, error: 'Register to access forum' };
 };
 const getForum = async (req, res) => {
     try {
@@ -112,7 +120,11 @@ const getNotifications = async (req, res) => {
             authorId: { $ne: req.user.id }
         };
         const newCount = await ForumMessage.countDocuments(query);
-        return res.status(200).json({ newCount, since: since.toISOString() });
+        const latest = await ForumMessage.find(query)
+            .sort({ createdAt: -1 })
+            .limit(5)
+            .select('authorName text createdAt parentId');
+        return res.status(200).json({ newCount, since: since.toISOString(), latest });
     } catch (error) {
         return res.status(500).json({ error: error.message });
     }

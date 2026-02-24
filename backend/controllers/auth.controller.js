@@ -6,10 +6,18 @@ require('dotenv').config()
 const make_token = (id, role, participant_type) => { //helper function
     return jwt.sign({ id, role, participant_type }, process.env.JWT_SECRET, { expiresIn: '3d' })
 }
+const isIiitEmail = (email = '') =>
+    /@(([\w-]+\.)?students\.iiit\.ac\.in|([\w-]+\.)?research\.iiit\.ac\.in|([\w-]+\.)?iiit\.ac\.in)$/i.test(email);
 const signup = async (req, res) => {
     try{
-        const { usertype, participant_type, first_name, last_name, email, org_name, phone_number, password } = req.body
-        if(participant_type == 'ITST' && !email.endsWith('@students.iiit.ac.in') && !email.endsWith('@research.iiit.ac.in'))
+        const { usertype, first_name, last_name, email, org_name, phone_number, password } = req.body
+        let participant_type = String(req.body.participant_type || '').trim().toUpperCase();
+        if (!participant_type) participant_type = isIiitEmail(email) ? 'ITST' : 'NITST';
+        if (participant_type === 'IIIT') participant_type = 'ITST';
+        if (['NON_IIIT', 'NON-IIIT', 'NONIIIT', 'OTHER'].includes(participant_type)) participant_type = 'NITST';
+        if (!['ITST', 'NITST'].includes(participant_type))
+            return res.status(400).json({ message: 'Invalid participant type' });
+        if(participant_type == 'ITST' && !isIiitEmail(email))
             return res.status(400).json({ message: 'Please enter your student institute ID!'}) //400: Bad Request // you have to return it, without returning, it keeps going on
         const participant = new Participant({ role: 'PPT', participant_type, first_name, last_name, email, org_name, phone_number, password })
         await participant.save()

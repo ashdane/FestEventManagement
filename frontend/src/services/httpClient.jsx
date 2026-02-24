@@ -46,12 +46,13 @@ const parseResponse = async (response) => {
 };
 const request = async (url, { method = 'GET', token, body } = {}) => {
     const hasBody = body !== undefined;
-    const headers = buildHeaders(token, hasBody);
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+    const headers = buildHeaders(token, hasBody && !isFormData);
     headers['X-Timezone'] = detectTimezone();
     const response = await fetch(buildUrl(url), {
         method,
         headers,
-        body: hasBody ? JSON.stringify(body) : undefined
+        body: hasBody ? (isFormData ? body : JSON.stringify(body)) : undefined
     });
     return parseResponse(response);
 };

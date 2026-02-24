@@ -100,7 +100,7 @@ const getOrganizersList = async (req, res) => {
         const participant = await Participant.findById(req.user.id).select('orgs_of_interests');
         if (!participant) return res.status(404).json({ error: 'Participant not found' });
         const followedSet = new Set((participant.orgs_of_interests || []).map((id) => String(id)));
-        const organizers = await Organizer.find({ __t: 'Organizer' }).select(
+        const organizers = await Organizer.find({ __t: 'Organizer', enabled: true, archived: { $ne: true } }).select(
             'org_name category description'
         );
         return res.status(200).json(

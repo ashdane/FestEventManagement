@@ -51,6 +51,15 @@ const EventSchema = new mongoose.Schema(
             type: Number,
             required: true
         },
+        stockqty: {
+            type: Number,
+            default: 0
+        },
+        merchandiseDetails: {
+            sizes: [{ type: String }],
+            colors: [{ type: String }],
+            purchaseLimitPerParticipant: { type: Number, default: 1 }
+        },
         org_id: {
             type: mongoose.Schema.Types.ObjectId, // Change this to ObjectId for proper indexing/joining
             ref: 'Organizer',

@@ -93,6 +93,19 @@ const manualOverrideAttendance = async (token, payload) => {
 const getAttendanceAudit = async (token, eventId) => {
     return HTTP_CLIENT.request(`/api/events/attendance/audit/${eventId}`, { token });
 };
+const buyMerchandise = async (token, payload) => {
+    const formData = new FormData();
+    Object.entries(payload || {}).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') formData.append(k, v);
+    });
+    return HTTP_CLIENT.request('/api/events/merchandise/purchase', { method: 'POST', token, body: formData });
+};
+const approveMerchandisePayment = async (token, ticketId) => {
+    return HTTP_CLIENT.request(`/api/events/merchandise/approve/${ticketId}`, { method: 'PUT', token });
+};
+const rejectMerchandisePayment = async (token, ticketId) => {
+    return HTTP_CLIENT.request(`/api/events/merchandise/reject/${ticketId}`, { method: 'PUT', token });
+};
 export default {
     createEventDraft,
     getOrganizerEvents,
@@ -118,5 +131,8 @@ export default {
     getAttendanceDashboard,
     getAttendanceCsvUrl,
     manualOverrideAttendance,
-    getAttendanceAudit
+    getAttendanceAudit,
+    buyMerchandise,
+    approveMerchandisePayment,
+    rejectMerchandisePayment
 };

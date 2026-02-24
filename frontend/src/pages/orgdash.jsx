@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import useLogout from '../hooks/useLogout';
 import useVerifyRoles from '../hooks/useVerifyRoles';
 import EVENT_SERVICE from '../services/eventServices';
@@ -9,13 +9,15 @@ import OrgTopNav from '../assets/OrgTopNav';
 const VIEWS = { DASHBOARD: 'dashboard', CREATE: 'create', PROFILE: 'profile', ONGOING: 'ongoing' };
 const DEFAULT_DRAFT = {
     event_name: '', event_description: '', event_type: 'Normal', eligibility: 'ALL',
-    reg_deadline: '', event_start: '', event_end: '', reg_limit: 100, reg_fee: 0
+    reg_deadline: '', event_start: '', event_end: '', reg_limit: 100, reg_fee: 0,
+    stockqty: 0, merch_sizes: '', merch_colors: '', purchaseLimitPerParticipant: 1
 };
 const EMPTY_ANALYTICS = { completed_events: 0, total_registrations: 0, total_sales: 0, total_revenue: 0, total_attendance: 0 };
 const OrgDash = () => {
     const { token_verification } = useVerifyRoles();
     const { LogoutLogic } = useLogout();
     const location = useLocation();
+    const navigate = useNavigate();
     const token = localStorage.getItem('token');
     const [events, setEvents] = useState([]);
     const [analytics, setAnalytics] = useState(EMPTY_ANALYTICS);
@@ -26,12 +28,8 @@ const OrgDash = () => {
     const [profile, setProfile] = useState({ org_name: '', category: '', description: '', contact_email: '', phone_number: '', discord_webhook_url: '', email: '' });
     const [resetReason, setResetReason] = useState('');
     const [resetHistory, setResetHistory] = useState([]);
-    const [forum, setForum] = useState([]);
-    const [forumText, setForumText] = useState('');
-    const [forumAnnouncement, setForumAnnouncement] = useState(false);
     const [activeView, setActiveView] = useState(VIEWS.DASHBOARD);
     const [loading, setLoading] = useState(true);
-    const selectedEvent = useMemo(() => events.find((e) => e._id === selectedEventId) || null, [events, selectedEventId]);
     const ongoingEvents = useMemo(() => events.filter((e) => e.status === 'ONGOING'), [events]);
     useEffect(() => {
         const view = new URLSearchParams(location.search).get('view');
@@ -42,13 +40,15 @@ const OrgDash = () => {
         setEvents(data.events || []);
         setAnalytics(data.analytics || EMPTY_ANALYTICS);
     }, [token]);
-    const loadDetail = useCallback(async (eventId, filters = detailFilters) => {
+    const loadDetail = useCallback(async (eventId, filters = detailFilters, force = false) => {
+        if (!force && detail?.event?._id === eventId) {
+            setDetail(null);
+            return;
+        }
         const data = await EVENT_SERVICE.getOrganizerEventDetails(token, eventId, filters);
         setDetail(data);
         setSelectedEventId(eventId);
-        const f = await EVENT_SERVICE.getForum(token, eventId).catch(() => ({ messages: [] }));
-        setForum(f.messages || []);
-    }, [token, detailFilters]);
+    }, [token, detailFilters, detail]);
     const loadProfile = useCallback(async () => {
         const [data, history] = await Promise.all([
             HOME_SERVICE.get_org_details(token),
@@ -58,21 +58,28 @@ const OrgDash = () => {
         setResetHistory(history || []);
     }, [token]);
     useEffect(() => {
-        if (!selectedEventId) return undefined;
-        const id = setInterval(async () => {
-            const d = await EVENT_SERVICE.getForum(token, selectedEventId).catch(() => ({ messages: [] }));
-            setForum(d.messages || []);
-        }, 5000);
-        return () => clearInterval(id);
-    }, [token, selectedEventId]);
-    useEffect(() => {
         const role = token_verification(token);
         if (role !== 'OGR') return LogoutLogic();
         Promise.all([fetchDashboard(), loadProfile()]).catch((e) => alert(e.message)).finally(() => setLoading(false));
     }, [token, token_verification, LogoutLogic, fetchDashboard, loadProfile]);
     const createDraft = useCallback(async (e) => {
         e.preventDefault();
-        try { await EVENT_SERVICE.createEventDraft(token, draftData); setDraftData(DEFAULT_DRAFT); await fetchDashboard(); alert('Draft created'); } catch (err) { alert(err.message); }
+        const csvToArr = (v) => String(v || '').split(',').map((x) => x.trim()).filter(Boolean);
+        const payload = draftData.event_type === 'Merchandise'
+            ? {
+                ...draftData,
+                stockqty: Number(draftData.stockqty || 0),
+                merchandiseDetails: {
+                    sizes: csvToArr(draftData.merch_sizes),
+                    colors: csvToArr(draftData.merch_colors),
+                    purchaseLimitPerParticipant: Number(draftData.purchaseLimitPerParticipant || 1)
+                }
+            }
+            : draftData;
+        delete payload.merch_sizes;
+        delete payload.merch_colors;
+        delete payload.purchaseLimitPerParticipant;
+        try { await EVENT_SERVICE.createEventDraft(token, payload); setDraftData(DEFAULT_DRAFT); await fetchDashboard(); alert('Draft created'); } catch (err) { alert(err.message); }
     }, [token, draftData, fetchDashboard]);
     const updateEvent = useCallback(async (eventId, payload) => {
         try { await EVENT_SERVICE.updateOrganizerEvent(token, eventId, payload); await fetchDashboard(); alert('Event updated'); } catch (err) { alert(err.message); }
@@ -80,6 +87,14 @@ const OrgDash = () => {
     const publishEvent = useCallback(async (eventId) => {
         try { await EVENT_SERVICE.publishEvent(token, eventId); await fetchDashboard(); alert('Event published'); } catch (err) { alert(err.message); }
     }, [token, fetchDashboard]);
+    const moderateMerch = useCallback(async (type, ticketId, eventId) => {
+        try {
+            if (type === 'approve') await EVENT_SERVICE.approveMerchandisePayment(token, ticketId);
+            else await EVENT_SERVICE.rejectMerchandisePayment(token, ticketId);
+            await Promise.all([fetchDashboard(), loadDetail(eventId, detailFilters)]);
+            alert(`Payment ${type}d`);
+        } catch (err) { alert(err.message); }
+    }, [token, fetchDashboard, loadDetail, detailFilters]);
     const saveProfile = async (e) => {
         e.preventDefault();
         try { await HOME_SERVICE.update_org_details(token, profile); alert('Profile saved'); await loadProfile(); } catch (err) { alert(err.message); }
@@ -107,29 +122,6 @@ const OrgDash = () => {
         a.click();
         URL.revokeObjectURL(url);
     };
-    const postForum = async () => {
-        if (!selectedEventId || !forumText.trim()) return;
-        try {
-            await EVENT_SERVICE.postForum(token, selectedEventId, { text: forumText.trim(), isAnnouncement: forumAnnouncement });
-            setForumText('');
-            setForumAnnouncement(false);
-            const d = await EVENT_SERVICE.getForum(token, selectedEventId);
-            setForum(d.messages || []);
-        } catch (err) { alert(err.message); }
-    };
-    const pinForum = async (id, pinned) => {
-        try {
-            await EVENT_SERVICE.pinForum(token, selectedEventId, id, !pinned);
-            const d = await EVENT_SERVICE.getForum(token, selectedEventId);
-            setForum(d.messages || []);
-        } catch (err) { alert(err.message); }
-    };
-    const deleteForum = async (id) => {
-        try {
-            await EVENT_SERVICE.deleteForum(token, selectedEventId, id);
-            setForum((prev) => prev.filter((m) => m._id !== id));
-        } catch (err) { alert(err.message); }
-    };
     return (
         <div className="page">
             {/* <h1>ORGANIZER DASHBOARD</h1> */}
@@ -144,7 +136,15 @@ const OrgDash = () => {
                                 <h3>{e.event_name}</h3>
                                 <p>Type: {e.event_type} | Status: {e.status}</p>
                                 <p>Fee: INR {e.reg_fee}</p>
-                                <button type="button" onClick={() => setActiveView(VIEWS.CREATE)}>Manage Event</button>
+                                <button
+                                    type="button"
+                                    onClick={async () => {
+                                        setActiveView(VIEWS.CREATE);
+                                        await loadDetail(e._id, detailFilters, true).catch((err) => alert(err.message));
+                                    }}
+                                >
+                                    Manage Event
+                                </button>
                             </div>
                         ))}
                     </div>
@@ -165,79 +165,94 @@ const OrgDash = () => {
                         <form onSubmit={createDraft} className="column">
                             <input name="event_name" value={draftData.event_name} placeholder="Event Name" onChange={(e) => setDraftData((p) => ({ ...p, event_name: e.target.value }))} required />
                             <textarea name="event_description" value={draftData.event_description} placeholder="Description" onChange={(e) => setDraftData((p) => ({ ...p, event_description: e.target.value }))} required />
-                            <select name="event_type" value={draftData.event_type} onChange={(e) => setDraftData((p) => ({ ...p, event_type: e.target.value }))}><option value="Normal">Normal</option><option value="Merchandise">Merchandise</option></select>
-                            <select name="eligibility" value={draftData.eligibility} onChange={(e) => setDraftData((p) => ({ ...p, eligibility: e.target.value }))}><option value="ALL">All</option><option value="IIIT">IIIT</option><option value="NON_IIIT">Non-IIIT</option></select>
-                            <input type="date" name="reg_deadline" value={draftData.reg_deadline} onChange={(e) => setDraftData((p) => ({ ...p, reg_deadline: e.target.value }))} required />
-                            <input type="date" name="event_start" value={draftData.event_start} onChange={(e) => setDraftData((p) => ({ ...p, event_start: e.target.value }))} required />
-                            <input type="date" name="event_end" value={draftData.event_end} onChange={(e) => setDraftData((p) => ({ ...p, event_end: e.target.value }))} required />
-                            <input type="number" name="reg_limit" value={draftData.reg_limit} onChange={(e) => setDraftData((p) => ({ ...p, reg_limit: Number(e.target.value) }))} required />
-                            <input type="number" name="reg_fee" value={draftData.reg_fee} onChange={(e) => setDraftData((p) => ({ ...p, reg_fee: Number(e.target.value) }))} required />
+                            <label>Event Type<select name="event_type" value={draftData.event_type} onChange={(e) => setDraftData((p) => ({ ...p, event_type: e.target.value }))}><option value="Normal">Normal</option><option value="Merchandise">Merchandise</option></select></label>
+                            <label>Eligibility<select name="eligibility" value={draftData.eligibility} onChange={(e) => setDraftData((p) => ({ ...p, eligibility: e.target.value }))}><option value="ALL">All</option><option value="IIIT">IIIT</option><option value="NON_IIIT">Non-IIIT</option></select></label>
+                            <label>Registration Deadline<input type="date" name="reg_deadline" value={draftData.reg_deadline} onChange={(e) => setDraftData((p) => ({ ...p, reg_deadline: e.target.value }))} required /></label>
+                            <label>Event Start Date<input type="date" name="event_start" value={draftData.event_start} onChange={(e) => setDraftData((p) => ({ ...p, event_start: e.target.value }))} required /></label>
+                            <label>Event End Date<input type="date" name="event_end" value={draftData.event_end} onChange={(e) => setDraftData((p) => ({ ...p, event_end: e.target.value }))} required /></label>
+                            <label>Registration Limit<input type="number" name="reg_limit" value={draftData.reg_limit} onChange={(e) => setDraftData((p) => ({ ...p, reg_limit: Number(e.target.value) }))} required /></label>
+                            <label>Registration Fee (INR)<input type="number" name="reg_fee" value={draftData.reg_fee} onChange={(e) => setDraftData((p) => ({ ...p, reg_fee: Number(e.target.value) }))} required /></label>
+                            {draftData.event_type === 'Merchandise' && <>
+                                <label>Stock Quantity<input type="number" name="stockqty" value={draftData.stockqty} onChange={(e) => setDraftData((p) => ({ ...p, stockqty: Number(e.target.value) }))} required /></label>
+                                <label>Available Sizes (comma separated)<input name="merch_sizes" value={draftData.merch_sizes} placeholder="S, M, L" onChange={(e) => setDraftData((p) => ({ ...p, merch_sizes: e.target.value }))} required /></label>
+                                <label>Available Colors (comma separated)<input name="merch_colors" value={draftData.merch_colors} placeholder="Black, White" onChange={(e) => setDraftData((p) => ({ ...p, merch_colors: e.target.value }))} required /></label>
+                                <label>Purchase Limit Per Participant<input type="number" min="1" name="purchaseLimitPerParticipant" value={draftData.purchaseLimitPerParticipant} onChange={(e) => setDraftData((p) => ({ ...p, purchaseLimitPerParticipant: Number(e.target.value) }))} required /></label>
+                            </>}
                             <button type="submit">Create Draft</button>
                         </form>
                     </div>
-                    {events.map((e) => (
-                        <div key={e._id} className="card">
+                    {events.map((e) => {
+                        const isDetailOpen = detail?.event?._id === e._id;
+                        const isFormOpen = isDetailOpen && selectedEventId === e._id && e.status === 'DRAFT';
+                        return (
+                            <div key={e._id} className="card">
                                 <h3>{e.event_name}</h3>
                                 <p>Status: {e.status} | Type: {e.event_type}</p>
                                 <p>{e.event_description}</p>
                                 <div className="row">
-                                    <button type="button" onClick={() => loadDetail(e._id)}>View Detail</button>
-                                    {e.status === 'DRAFT' && <>
-                                        <button type="button" onClick={() => setSelectedEventId(selectedEventId === e._id ? '' : e._id)}>{selectedEventId === e._id ? 'Hide Form Builder' : 'Define Required Fields'}</button>
-                                        <button type="button" onClick={() => publishEvent(e._id)}>Publish</button>
-                                </>}
-                                {e.status === 'PUBLISHED' && <>
-                                    <button type="button" onClick={() => updateEvent(e._id, { event_description: `${e.event_description} (edited)` })}>Update Description</button>
-                                    <button type="button" onClick={() => updateEvent(e._id, { reg_limit: Number(e.reg_limit) + 10 })}>Increase Limit +10</button>
-                                    <button type="button" onClick={() => updateEvent(e._id, { registration_closed: true })}>Close Registrations</button>
-                                </>}
-                                {['ONGOING', 'COMPLETED'].includes(e.status) && <>
-                                    <button type="button" onClick={() => updateEvent(e._id, { status: 'COMPLETED' })}>Mark Completed</button>
-                                    <button type="button" onClick={() => updateEvent(e._id, { status: 'CLOSED' })}>Mark Closed</button>
-                                </>}
-                            </div>
-                        </div>
-                    ))}
-                    {selectedEvent && <FormBuilder eventId={selectedEvent._id} token={token} />}
-                    {detail && (
-                        <div className="card">
-                            <h2>Event Detail</h2>
-                            <p><strong>Name:</strong> {detail.event.event_name}</p>
-                            <p><strong>Type:</strong> {detail.event.event_type} | <strong>Status:</strong> {detail.event.status}</p>
-                            <p><strong>Dates:</strong> {new Date(detail.event.event_start).toLocaleString()} - {new Date(detail.event.event_end).toLocaleString()}</p>
-                            <p><strong>Eligibility:</strong> {detail.event.eligibility} | <strong>Pricing:</strong> INR {detail.event.reg_fee}</p>
-                            <p><strong>Registrations/Sales:</strong> {detail.detailAnalytics?.sales ?? detail.registrationsCount} | <strong>Attendance:</strong> {detail.detailAnalytics?.attendance ?? detail.attendanceCount} | <strong>Team completion:</strong> {detail.detailAnalytics?.teamCompletion ?? 0} | <strong>Revenue:</strong> INR {detail.detailAnalytics?.revenue ?? 0}</p>
-                            <div className="row">
-                                <input placeholder="Search participant/email/team" value={detailFilters.q} onChange={(e) => setDetailFilters((f) => ({ ...f, q: e.target.value }))} />
-                                <select value={detailFilters.status} onChange={(e) => setDetailFilters((f) => ({ ...f, status: e.target.value }))}>
-                                    <option value="">All Status</option><option value="REGISTERED">REGISTERED</option><option value="COMPLETED">COMPLETED</option><option value="CANCELLED">CANCELLED</option><option value="REJECTED">REJECTED</option>
-                                </select>
-                                <button type="button" onClick={() => loadDetail(detail.event._id, detailFilters)}>Apply</button>
-                                <button type="button" onClick={exportCsv}>Export CSV</button>
-                            </div>
-                            <div style={{ overflowX: 'auto' }}>
-                                <table><thead><tr><th>Name</th><th>Email</th><th>Reg Date</th><th>Payment</th><th>Team</th><th>Attendance</th></tr></thead><tbody>
-                                    {(detail.participants || []).map((p) => <tr key={p.ticket_id || `${p.email}-${p.regDate}`}><td>{p.name}</td><td>{p.email}</td><td>{p.regDate ? new Date(p.regDate).toLocaleString() : '-'}</td><td>{p.payment}</td><td>{p.team}</td><td>{p.attendance ? 'Yes' : 'No'}</td></tr>)}
-                                </tbody></table>
-                            </div>
-                            <h3>Forum Moderation</h3>
-                            <div className="column">
-                                <input placeholder="Post update or reply" value={forumText} onChange={(e) => setForumText(e.target.value)} />
-                                <label><input type="checkbox" checked={forumAnnouncement} onChange={(e) => setForumAnnouncement(e.target.checked)} /> Announcement</label>
-                                <button type="button" onClick={postForum}>Post</button>
-                            </div>
-                            {(forum || []).map((m) => (
-                                <div key={m._id} className="card">
-                                    <p><strong>{m.pinned ? '[Pinned] ' : ''}{m.isAnnouncement ? '[Announcement] ' : ''}{m.authorName}</strong></p>
-                                    <p>{m.text}</p>
-                                    <div className="column">
-                                        <button type="button" onClick={() => pinForum(m._id, m.pinned)}>{m.pinned ? 'Unpin' : 'Pin'}</button>
-                                        <button type="button" onClick={() => deleteForum(m._id)}>Delete</button>
-                                    </div>
+                                    <button type="button" onClick={() => loadDetail(e._id)}>{isDetailOpen ? 'Hide Detail' : 'View Detail'}</button>
+                                    {e.status === 'DRAFT' && isDetailOpen && (
+                                        <button type="button" onClick={() => setSelectedEventId(isFormOpen ? '' : e._id)}>
+                                            {isFormOpen ? 'Hide Add Fields' : 'Add/Define Fields'}
+                                        </button>
+                                    )}
+                                    {e.status === 'DRAFT' && <button type="button" onClick={() => publishEvent(e._id)}>Publish</button>}
+                                    {e.status === 'PUBLISHED' && <>
+                                        <button type="button" onClick={() => updateEvent(e._id, { event_description: `${e.event_description} (edited)` })}>Update Description</button>
+                                        <button type="button" onClick={() => updateEvent(e._id, { reg_limit: Number(e.reg_limit) + 10 })}>Increase Limit +10</button>
+                                        <button type="button" onClick={() => updateEvent(e._id, { registration_closed: true })}>Close Registrations</button>
+                                    </>}
+                                    {['ONGOING', 'COMPLETED'].includes(e.status) && <>
+                                        <button type="button" onClick={() => updateEvent(e._id, { status: 'COMPLETED' })}>Mark Completed</button>
+                                        <button type="button" onClick={() => updateEvent(e._id, { status: 'CLOSED' })}>Mark Closed</button>
+                                    </>}
                                 </div>
-                            ))}
-                        </div>
-                    )}
+                                {isDetailOpen && (
+                                    <div className="card event-detail-inner">
+                                        <h2>Event Detail</h2>
+                                        <p><strong>Name:</strong> {detail.event.event_name}</p>
+                                        <p><strong>Type:</strong> {detail.event.event_type} | <strong>Status:</strong> {detail.event.status}</p>
+                                        <p><strong>Dates:</strong> {new Date(detail.event.event_start).toLocaleString()} - {new Date(detail.event.event_end).toLocaleString()}</p>
+                                        <p><strong>Eligibility:</strong> {detail.event.eligibility} | <strong>Pricing:</strong> INR {detail.event.reg_fee}</p>
+                                        {detail.event.event_type === 'Merchandise' && <p><strong>Merch:</strong> Stock {detail.event.stockqty || 0} | Sizes {(detail.event.merchandiseDetails?.sizes || []).join(', ') || '-'} | Colors {(detail.event.merchandiseDetails?.colors || []).join(', ') || '-'} | Per-user Limit {detail.event.merchandiseDetails?.purchaseLimitPerParticipant || 1}</p>}
+                                        <p><strong>Registrations/Sales:</strong> {detail.detailAnalytics?.sales ?? detail.registrationsCount} | <strong>Attendance:</strong> {detail.detailAnalytics?.attendance ?? detail.attendanceCount} | <strong>Team completion:</strong> {detail.detailAnalytics?.teamCompletion ?? 0} | <strong>Revenue:</strong> INR {detail.detailAnalytics?.revenue ?? 0}</p>
+                                        {isFormOpen && <FormBuilder eventId={e._id} token={token} />}
+                                        <div className="row">
+                                            <input placeholder="Search participant/email/team" value={detailFilters.q} onChange={(x) => setDetailFilters((f) => ({ ...f, q: x.target.value }))} />
+                                            <select value={detailFilters.status} onChange={(x) => setDetailFilters((f) => ({ ...f, status: x.target.value }))}>
+                                                <option value="">All Status</option><option value="REGISTERED">REGISTERED</option><option value="COMPLETED">COMPLETED</option><option value="CANCELLED">CANCELLED</option><option value="REJECTED">REJECTED</option>
+                                            </select>
+                                            <button type="button" onClick={() => loadDetail(e._id, detailFilters)}>Apply</button>
+                                            <button type="button" onClick={exportCsv}>Export CSV</button>
+                                        </div>
+                                        {detail.event.event_type === 'Merchandise' && (
+                                            <>
+                                                <h3>Merchandise Orders (Payment Moderation)</h3>
+                                                {!!(detail.merchOrders || []).length && (
+                                                    <div style={{ overflowX: 'auto' }}>
+                                                        <table><thead><tr><th>Ticket</th><th>Name</th><th>Email</th><th>Size</th><th>Color</th><th>Qty</th><th>Status</th><th>Payment Proof</th><th>Action</th></tr></thead><tbody>
+                                                            {(detail.merchOrders || []).map((o) => <tr key={o._id}><td>{o.ticketId}</td><td>{o.participantName || '-'}</td><td>{o.participantEmail || '-'}</td><td>{o.size || '-'}</td><td>{o.color || '-'}</td><td>{o.qty || 0}</td><td>{o.status}</td><td>{o.paymentProofUrl ? <a href={o.paymentProofUrl} target="_blank" rel="noreferrer">View</a> : '-'}</td><td>{o.status === 'Pending Approval' ? <><button type="button" onClick={() => moderateMerch('approve', o._id, e._id)}>Approve</button><button type="button" onClick={() => moderateMerch('reject', o._id, e._id)}>Reject</button></> : '-'}</td></tr>)}
+                                                        </tbody></table>
+                                                    </div>
+                                                )}
+                                                {!((detail.merchOrders || []).length) && <p>No orders yet.</p>}
+                                            </>
+                                        )}
+                                        {detail.event.event_type !== 'Merchandise' && !!(detail.participants || []).length && (
+                                            <div style={{ overflowX: 'auto' }}>
+                                                <table><thead><tr><th>Name</th><th>Email</th><th>Reg Date</th><th>Payment</th><th>Team</th><th>Attendance</th></tr></thead><tbody>
+                                                    {(detail.participants || []).map((p) => <tr key={p.ticket_id || `${p.email}-${p.regDate}`}><td>{p.name}</td><td>{p.email}</td><td>{p.regDate ? new Date(p.regDate).toLocaleString() : '-'}</td><td>{p.payment}</td><td>{p.team}</td><td>{p.attendance ? 'Yes' : 'No'}</td></tr>)}
+                                                </tbody></table>
+                                            </div>
+                                        )}
+                                        {detail.event.event_type !== 'Merchandise' && !((detail.participants || []).length) && <p>No participant records yet.</p>}
+                                        <h3>Forum Moderation</h3>
+                                        <button type="button" onClick={() => navigate(`/events/${e._id}/forum`)}>Open Forum Chat</button>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
                 </>
             )}
             {!loading && activeView === VIEWS.ONGOING && (

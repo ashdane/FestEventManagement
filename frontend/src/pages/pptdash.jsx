@@ -75,7 +75,10 @@ const PPTDash = () => {
         setSelectedEventIds((dashboard.upcomingEvents || []).map((e) => String(e.event_id)));
     };
     const clearSelection = () => setSelectedEventIds([]);
-    const openLink = (url) => window.open(url, '_blank');
+    const openLink = (url) => {
+        if (!url) return alert('Calendar link not available for this event yet.');
+        window.open(url, '_blank', 'noopener,noreferrer');
+    };
     const ticketClick = async (ticketId) => {
         try {
             await navigator.clipboard.writeText(ticketId);

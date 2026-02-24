@@ -64,28 +64,34 @@ const AdminDash = () => {
             <AdminTopNav activeView={activeView} onChangeView={setActiveView} />
             {activeView === 'resets' && (
                 <>
-                    <h2>Reset Requests (Pending)</h2>
-                    {(pending || []).map((r) => (
-                        <div key={r._id} className="card">
-                            <p><strong>{r.organizerId?.org_name || 'Organizer'}</strong> - {r.reason}</p>
-                            <div className="row">
-                                <button type="button" onClick={() => act('approve', r._id)}>Approve</button>
-                                <button type="button" onClick={() => act('reject', r._id)}>Reject</button>
-                            </div>
+                    <div className="row" style={{ alignItems: 'flex-start', gap: 16 }}>
+                        <div style={{ flex: 1, minWidth: 280 }}>
+                            <h2>Reset Requests (Pending)</h2>
+                            {(pending || []).map((r) => (
+                                <div key={r._id} className="card">
+                                    <p><strong>{r.organizerId?.org_name || 'Organizer'}</strong> - {r.reason}</p>
+                                    <div className="row">
+                                        <button type="button" onClick={() => act('approve', r._id)}>Approve</button>
+                                        <button type="button" onClick={() => act('reject', r._id)}>Reject</button>
+                                    </div>
+                                </div>
+                            ))}
+                            {lastResetCred && (
+                                <p className="card">
+                                    Latest approved reset password (share with organizer): {lastResetCred.password}
+                                </p>
+                            )}
                         </div>
-                    ))}
-                    {lastResetCred && (
-                        <p className="card">
-                            Latest approved reset password (share with organizer): {lastResetCred.password}
-                        </p>
-                    )}
-                    <h2>Reset History</h2>
-                    {(history || []).map((r) => (
-                        <div key={r._id} className="card">
-                            <p>{r.organizerId?.org_name || 'Organizer'} - {r.status}</p>
-                            <p>{r.adminComments || '-'}</p>
+                        <div style={{ flex: 1, minWidth: 280 }}>
+                            <h2>Reset History</h2>
+                            {(history || []).map((r) => (
+                                <div key={r._id} className="card">
+                                    <p>{r.organizerId?.org_name || 'Organizer'} - {r.status}</p>
+                                    <p>{r.adminComments || '-'}</p>
+                                </div>
+                            ))}
                         </div>
-                    ))}
+                    </div>
                 </>
             )}
             {activeView === 'organizers' && (
@@ -98,18 +104,20 @@ const AdminDash = () => {
                         <button type="submit">Create</button>
                     </form>
                     {lastCreds && <p className="card">Generated credentials: {lastCreds.email} / {lastCreds.password}</p>}
-                    {(organizers || []).map((o) => (
-                        <div key={o._id} className="card">
-                            <p><strong>{o.org_name}</strong> ({o.email})</p>
-                            <p>enabled: {String(o.enabled)} | archived: {String(o.archived)}</p>
-                            <div className="row">
-                                <button type="button" onClick={() => orgAct('disable', o._id)}>Disable</button>
-                                <button type="button" onClick={() => orgAct('enable', o._id)}>Enable</button>
-                                <button type="button" onClick={() => orgAct('archive', o._id)}>Archive</button>
-                                <button type="button" onClick={() => orgAct('delete', o._id)}>Delete</button>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(280px, 1fr))', gap: 12 }}>
+                        {(organizers || []).map((o) => (
+                            <div key={o._id} className="card">
+                                <p><strong>{o.org_name}</strong> ({o.email})</p>
+                                <p>enabled: {String(o.enabled)} | archived: {String(o.archived)}</p>
+                                <div className="row">
+                                    <button type="button" onClick={() => orgAct('disable', o._id)}>Disable</button>
+                                    <button type="button" onClick={() => orgAct('enable', o._id)}>Enable</button>
+                                    <button type="button" onClick={() => orgAct('archive', o._id)}>Archive</button>
+                                    <button type="button" onClick={() => orgAct('delete', o._id)}>Delete</button>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </>
             )}
         </div>

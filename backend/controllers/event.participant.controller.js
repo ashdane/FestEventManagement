@@ -1,6 +1,7 @@
 const { Event, Organizer, Participant, ACTIVE_STATUSES, isRegOpen, isPPTelig, getActiveRegistrationCount,
     getTrendingMap } = require('./event.shared');
 const { sendTicketMail } = require('../utils/mailer');
+const Ticket = require('../models/Ticket');
 const esc = (v = '') => String(v).replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;');
 const stamp = (d) => new Date(d).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
 const norm = (v = '') => String(v).toLowerCase().trim();
@@ -143,13 +144,39 @@ const getEventDetailsForPPT = async (req, res) => {
         const event = await Event.findById(eventId);
         if (!event)
             return res.status(404).json({ error: 'Event not found' });
-        const participant = await Participant.findById(req.user.id).select('registrations participant_type');
+        const participant = await Participant.findById(req.user.id).select('registrations participant_type email');
         if (!participant)
             return res.status(404).json({ error: 'Participant not found' });
         const organizer = await Organizer.findById(event.org_id).select('org_name email');
         const activeRegs = await getActiveRegistrationCount(event._id);
         const myRegistration =
             participant.registrations.find((reg) => String(reg.event_id) === String(event._id)) || null;
+        const myMerchOrders = event.event_type === 'Merchandise'
+            ? await Ticket.find({ eventId: event._id, participantId: participant._id, status: { $ne: 'Rejected' } }).select('status merchandiseDetails.qty ticketId createdAt').sort({ createdAt: -1 })
+            : [];
+        const myQty = myMerchOrders.reduce((sum, t) => sum + Number(t.merchandiseDetails?.qty || 0), 0);
+        const merchLimit = Number(event.merchandiseDetails?.purchaseLimitPerParticipant || 1);
+        const participantType = participant.participant_type || req.user.participant_type;
+        const regOpen = isRegOpen(event);
+        const eligOk = isPPTelig(event.eligibility, participantType, participant.email);
+        const stockLeft = Number(event.stockqty ?? event.reg_limit ?? 0);
+        const stockOk = stockLeft > 0;
+        const merchLimitOk = myQty < merchLimit;
+        const normalCapacityOk = activeRegs < Number(event.reg_limit || 0);
+        const normalNewUserOk = !myRegistration;
+        const merchCanPurchase = regOpen && stockOk && eligOk && merchLimitOk;
+        const normalCanRegister = regOpen && normalCapacityOk && normalNewUserOk && eligOk;
+        const blockingReason = event.event_type === 'Merchandise'
+            ? (!regOpen ? 'Registration deadline passed or registrations closed'
+                : !eligOk ? 'You are not eligible for this event'
+                : !stockOk ? 'Merchandise is out of stock'
+                : !merchLimitOk ? `Purchase limit reached (${merchLimit})`
+                : '')
+            : (!regOpen ? 'Registration deadline passed or registrations closed'
+                : !eligOk ? 'You are not eligible for this event'
+                : !normalCapacityOk ? 'Registration limit reached'
+                : !normalNewUserOk ? 'Already registered for this event'
+                : '');
         return res.status(200).json({
             event: {
                 ...event.toObject(),
@@ -157,12 +184,11 @@ const getEventDetailsForPPT = async (req, res) => {
                 organizer_email: organizer?.email || '',
                 active_registrations: activeRegs
             },
-            canRegister:
-                isRegOpen(event) &&
-                activeRegs < event.reg_limit &&
-                !myRegistration &&
-                isPPTelig(event.eligibility, participant.participant_type),
-            myRegistration
+            canRegister: event.event_type === 'Merchandise' ? merchCanPurchase : normalCanRegister,
+            blockingReason,
+            myRegistration: event.event_type === 'Merchandise'
+                ? (myMerchOrders[0] ? { ticket_id: myMerchOrders[0].ticketId, participation_status: myMerchOrders[0].status } : null)
+                : myRegistration
         });
     }
     catch (error) {
@@ -181,7 +207,8 @@ const registerForEvent = async (req, res) => {
             return res.status(404).json({ error: 'Participant not found' });
         if (!isRegOpen(event))
             return res.status(400).json({ error: 'Event is not open for registration' });
-        if (!isPPTelig(event.eligibility, participant.participant_type))
+        const participantType = participant.participant_type || req.user.participant_type;
+        if (!isPPTelig(event.eligibility, participantType, participant.email))
             return res.status(403).json({ error: 'Participant is ineligible for this event' });
         const alreadyRegistered = (participant.registrations || []).some(
             (reg) => String(reg.event_id) === String(event._id)
@@ -224,15 +251,18 @@ const registerForEvent = async (req, res) => {
 };
 const getMyEventsDashboard = async (req, res) => {
     try {
-        const participant = await Participant.findById(req.user.id)
-            .select('registrations')
-            .populate('registrations.event_id');
+        const [participant, merchTickets] = await Promise.all([
+            Participant.findById(req.user.id).select('registrations').populate('registrations.event_id'),
+            Ticket.find({ participantId: req.user.id, type: 'Merchandise' }).populate('eventId')
+        ]);
         if (!participant) return res.status(404).json({ error: 'Participant not found' });
         const registrations = participant.registrations || [];
+        const tickets = merchTickets || [];
         const organizerIds = [
             ...new Set(
                 registrations
                     .map((reg) => reg.event_id?.org_id)
+                    .concat(tickets.map((t) => t.eventId?.org_id))
                     .filter(Boolean)
                     .map((id) => String(id))
             )
@@ -243,7 +273,7 @@ const getMyEventsDashboard = async (req, res) => {
             organizerMap[String(org._id)] = org.org_name;
         });
         const now = new Date();
-        const eventRecords = registrations
+        const normalRecords = registrations
             .filter((reg) => reg.event_id)
             .map((reg) => {
                 const event = reg.event_id;
@@ -261,14 +291,31 @@ const getMyEventsDashboard = async (req, res) => {
                     isUpcoming: new Date(event.event_start) >= now
                 };
             });
+        const merchRecords = tickets
+            .filter((t) => t.eventId)
+            .map((t) => {
+                const event = t.eventId;
+                return {
+                    event_id: event._id,
+                    event_name: event.event_name,
+                    event_type: 'Merchandise',
+                    organizer: organizerMap[String(event.org_id)] || 'Organizer',
+                    schedule: `${new Date(event.event_start).toLocaleDateString()} - ${new Date(event.event_end).toLocaleDateString()}`,
+                    participation_status: t.status,
+                    team_name: 'N/A',
+                    ticket_id: t.ticketId,
+                    isUpcoming: new Date(event.event_start) >= now
+                };
+            });
+        const eventRecords = [...normalRecords, ...merchRecords];
         return res.status(200).json({
-            upcomingEvents: eventRecords.filter((record) => record.isUpcoming),
+            upcomingEvents: eventRecords.filter((record) => record.isUpcoming && !['REJECTED', 'Rejected', 'CANCELLED', 'Cancelled'].includes(record.participation_status)),
             participationHistory: {
-                Normal: eventRecords.filter((record) => record.event_type === 'Normal'),
+                Normal: normalRecords,
                 Merchandise: eventRecords.filter((record) => record.event_type === 'Merchandise'),
-                Completed: eventRecords.filter((record) => record.participation_status === 'COMPLETED'),
+                Completed: eventRecords.filter((record) => ['COMPLETED', 'Successful'].includes(record.participation_status)),
                 CancelledRejected: eventRecords.filter((record) =>
-                    ['CANCELLED', 'REJECTED'].includes(record.participation_status)
+                    ['CANCELLED', 'REJECTED', 'Rejected', 'Cancelled'].includes(record.participation_status)
                 )
             },
             eventRecords
@@ -279,11 +326,21 @@ const getMyEventsDashboard = async (req, res) => {
 };
 const getMyCalendarLinks = async (req, res) => {
     try {
-        const participant = await Participant.findById(req.user.id).select('registrations.event_id');
+        const [participant, merchTickets] = await Promise.all([
+            Participant.findById(req.user.id).select('registrations.event_id'),
+            Ticket.find({
+                participantId: req.user.id,
+                type: 'Merchandise',
+                status: { $nin: ['Rejected', 'Cancelled'] }
+            }).select('eventId')
+        ]);
         if (!participant)
             return res.status(404).json({ error: 'Participant not found' });
         const requested = (req.query.eventIds || '').split(',').map((id) => id.trim()).filter(Boolean);
-        const registered = new Set((participant.registrations || []).map((r) => String(r.event_id)));
+        const registered = new Set(
+            (participant.registrations || []).map((r) => String(r.event_id))
+                .concat((merchTickets || []).map((t) => String(t.eventId)))
+        );
         const ids = (requested.length ? requested.filter((id) => registered.has(id)) : [...registered]).filter(Boolean);
         const events = await Event.find({ _id: { $in: ids } }).select('event_name event_description event_start event_end');
         const timezone = resolveTimezone(req);
@@ -299,11 +356,21 @@ const getMyCalendarLinks = async (req, res) => {
 };
 const exportCalendarIcs = async (req, res) => {
     try {
-        const participant = await Participant.findById(req.user.id).select('registrations.event_id');
+        const [participant, merchTickets] = await Promise.all([
+            Participant.findById(req.user.id).select('registrations.event_id'),
+            Ticket.find({
+                participantId: req.user.id,
+                type: 'Merchandise',
+                status: { $nin: ['Rejected', 'Cancelled'] }
+            }).select('eventId')
+        ]);
         if (!participant)
             return res.status(404).json({ error: 'Participant not found' });
         const requested = (req.query.eventIds || '').split(',').map((id) => id.trim()).filter(Boolean);
-        const registered = new Set((participant.registrations || []).map((r) => String(r.event_id)));
+        const registered = new Set(
+            (participant.registrations || []).map((r) => String(r.event_id))
+                .concat((merchTickets || []).map((t) => String(t.eventId)))
+        );
         const ids = requested.length ? requested.filter((id) => registered.has(id)) : [...registered];
         const events = await Event.find({ _id: { $in: ids } }).select('event_name event_description event_start event_end');
         const reminderMinutes = normalizeReminder(req.query.reminderMinutes);

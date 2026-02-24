@@ -1,75 +1,46 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import TopNav from '../assets/TopNav';
 import useLogout from '../hooks/useLogout';
 import useVerifyRoles from '../hooks/useVerifyRoles';
 import EVENT_SERVICE from '../services/eventServices';
 const EventDetails = () => {
     const { eventId } = useParams();
+    const navigate = useNavigate();
     const { token_verification } = useVerifyRoles();
     const { LogoutLogic } = useLogout();
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [forum, setForum] = useState([]);
-    const [text, setText] = useState('');
-    const [replyTo, setReplyTo] = useState('');
-    const [since, setSince] = useState(new Date().toISOString());
-    const [forumAllowed, setForumAllowed] = useState(false);
+    const [merch, setMerch] = useState({ size: '', color: '', quantity: 1, paymentProof: null });
     const token = localStorage.getItem('token');
     const loadDetails = async () => {
         const payload = await EVENT_SERVICE.getEventDetails(token, eventId);
-        setForumAllowed(Boolean(payload?.myRegistration));
         setData(payload);
-        return payload;
     };
     useEffect(() => {
         const role = token_verification(token);
         if (role !== 'PPT') return LogoutLogic();
-        loadDetails()
-            .then((payload) => {
-                if (payload?.myRegistration) {
-                    EVENT_SERVICE.getForum(token, eventId).then((d) => setForum(d.messages || [])).catch(() => {});
-                }
-            })
-            .catch((error) => alert(error.message))
-            .finally(() => setLoading(false));
-        const id = setInterval(async () => {
-            if (!forumAllowed) return;
-            try {
-                const n = await EVENT_SERVICE.forumNotifications(token, eventId, since);
-                if ((n.newCount || 0) > 0) {
-                    const d = await EVENT_SERVICE.getForum(token, eventId, { since });
-                    setForum((prev) => [...prev, ...(d.messages || [])]);
-                    setSince(new Date().toISOString());
-                }
-            } catch {}
-        }, 5000);
-        return () => clearInterval(id);
-    }, [eventId, token, token_verification, LogoutLogic, since, forumAllowed]);
+        loadDetails().catch((error) => alert(error.message)).finally(() => setLoading(false));
+    }, [eventId, token, token_verification, LogoutLogic]);
     const register = async () => {
         try {
-            const payload = await EVENT_SERVICE.registerForEvent(token, eventId, {});
-            alert(`Registered successfully. Ticket ID: ${payload.ticket_id}`);
+            const isMerch = data?.event?.event_type === 'Merchandise';
+            const payload = isMerch
+                ? await EVENT_SERVICE.buyMerchandise(token, {
+                    eventId,
+                    size: merch.size,
+                    color: merch.color,
+                    quantity: Number(merch.quantity || 1),
+                    paymentProof: merch.paymentProof
+                })
+                : await EVENT_SERVICE.registerForEvent(token, eventId, {});
+            alert(isMerch ? `Order placed. Status: Pending Approval` : `Registered successfully. Ticket ID: ${payload.ticket_id}`);
             setLoading(true);
-            const details = await loadDetails().catch((error) => alert(error.message));
-            if (details?.myRegistration) {
-                const d = await EVENT_SERVICE.getForum(token, eventId).catch(() => ({ messages: [] }));
-                setForum(d.messages || []);
-            }
+            await loadDetails().catch((error) => alert(error.message));
             setLoading(false);
         } catch (error) {
             alert(error.message || 'Registration failed');
         }
-    };
-    const postMessage = async () => {
-        if (!text.trim()) return;
-        try {
-            const d = await EVENT_SERVICE.postForum(token, eventId, { text, parentId: replyTo || null });
-            setForum((prev) => [...prev, d.forumMessage]);
-            setText('');
-            setReplyTo('');
-            setSince(new Date().toISOString());
-        } catch (e) { alert(e.message); }
     };
     if (loading) return <div style={{ padding: '20px' }}><TopNav /><p>Loading event details...</p></div>;
     if (!data) return <div style={{ padding: '20px' }}><TopNav /><p>Event not found.</p></div>;
@@ -89,35 +60,25 @@ const EventDetails = () => {
             <p><strong>Current Registrations:</strong> {event.active_registrations}</p>
             <p><strong>Eligibility:</strong> {event.eligibility}</p>
             {myRegistration && <p><strong>Your Ticket:</strong> {myRegistration.ticket_id} ({myRegistration.participation_status})</p>}
-            <button type="button" onClick={register} disabled={!canRegister}>{event.event_type === 'Merchandise' ? 'Purchase' : 'Register'}</button>
+            {event.event_type === 'Merchandise' && (
+                <div className="card" style={{ marginBottom: '12px' }}>
+                    <p><strong>Stock:</strong> {event.stockqty || 0}</p>
+                    <label>Size<select value={merch.size} onChange={(e) => setMerch((m) => ({ ...m, size: e.target.value }))}><option value="">Select</option>{(event.merchandiseDetails?.sizes || []).map((s) => <option key={s} value={s}>{s}</option>)}</select></label>
+                    <label>Color<select value={merch.color} onChange={(e) => setMerch((m) => ({ ...m, color: e.target.value }))}><option value="">Select</option>{(event.merchandiseDetails?.colors || []).map((c) => <option key={c} value={c}>{c}</option>)}</select></label>
+                    <label>Quantity<input type="number" min="1" max={event.merchandiseDetails?.purchaseLimitPerParticipant || 1} value={merch.quantity} onChange={(e) => setMerch((m) => ({ ...m, quantity: Number(e.target.value) }))} /></label>
+                    <label>Payment Proof<input type="file" accept="image/*" onChange={(e) => setMerch((m) => ({ ...m, paymentProof: e.target.files?.[0] || null }))} /></label>
+                </div>
+            )}
+            {event.event_type === 'Merchandise' ? (
+                <button type="button" onClick={register} disabled={!canRegister}>Purchase Merchandise</button>
+            ) : (
+                <button type="button" onClick={register} disabled={!canRegister}>Register for Event</button>
+            )}
             {!canRegister && <p style={{ color: 'crimson', marginTop: '8px' }}>{blockingReason}</p>}
             <div className="card" style={{ marginTop: '14px' }}>
                 <h2>Discussion Forum</h2>
-                {!forumAllowed ? (
-                    <p>Register first to access event discussion.</p>
-                ) : (
-                    <>
-                        <div className="row">
-                            <input value={text} onChange={(e) => setText(e.target.value)} placeholder={replyTo ? 'Reply...' : 'Ask a question...'} />
-                            {replyTo && <button type="button" onClick={() => setReplyTo('')}>Cancel Reply</button>}
-                            <button type="button" onClick={postMessage}>Post</button>
-                        </div>
-                        {(forum || []).map((m) => (
-                            <div key={m._id} className="card">
-                                <p><strong>{m.isAnnouncement ? '[Announcement] ' : ''}{m.authorName}</strong>{m.parentId ? ' (reply)' : ''}</p>
-                                <p>{m.text}</p>
-                                <div className="row">
-                                    <button type="button" onClick={() => setReplyTo(m._id)}>Reply</button>
-                                    <button type="button" onClick={async () => {
-                                        await EVENT_SERVICE.reactForum(token, eventId, m._id, 'like');
-                                        const d = await EVENT_SERVICE.getForum(token, eventId);
-                                        setForum(d.messages || []);
-                                    }}>Like {(m.reactions || []).find((r) => r.emoji === 'like')?.users?.length || 0}</button>
-                                </div>
-                            </div>
-                        ))}
-                    </>
-                )}
+                <p>{myRegistration ? 'Open chat to post, reply, and react.' : 'Register first to access event discussion.'}</p>
+                <button type="button" disabled={!myRegistration} onClick={() => navigate(`/events/${eventId}/forum`)}>Open Forum Chat</button>
             </div>
         </div>
     );

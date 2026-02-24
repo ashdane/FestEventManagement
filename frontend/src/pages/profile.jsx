@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import TopNav from '../assets/TopNav';
 import useLogout from '../hooks/useLogout';
 import useVerifyRoles from '../hooks/useVerifyRoles';
-import HOME_SERVICE from '../services/homeServices';
 import PARTICIPANT_SERVICE from '../services/participantServices';
 const defaultProfile = {
     first_name: '',
@@ -34,9 +33,9 @@ const Profile = () => {
         });
     }, [token]);
     const fetchOrgs = useCallback(async () => {
-        const data = await HOME_SERVICE.getOrganizers();
+        const data = await PARTICIPANT_SERVICE.getOrganizersList(token);
         setOrgOptions(data);
-    }, []);
+    }, [token]);
     useEffect(() => {
         const role = token_verification(token);
         if (role !== 'PPT' && role != 'OGR') {
@@ -95,7 +94,6 @@ const Profile = () => {
                 <input name="phone_number" value={profile.phone_number} onChange={handleInput} placeholder="Contact Number" />
                 <input name="org_name" value={profile.org_name} onChange={handleInput} placeholder="College / Organization" />
                 <input value={profile.email} readOnly placeholder="Email" />
-                <input value={profile.participant_type} readOnly placeholder="Participant Type" />
                 <label>Selected Interests</label>
                 <select multiple value={profile.areas_of_interests} onChange={(e) => handleMultiSelect(e, 'areas_of_interests')}>
                     <option value="TECH_EVENTS">Tech</option>

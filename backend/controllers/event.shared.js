@@ -1,7 +1,7 @@
 const Event = require('../models/Events');
 const Organizer = require('../models/Organizer');
 const Participant = require('../models/Participant');
-const formFields = ['event_name','event_description', 'event_type','eligibility','reg_deadline', 'event_start', 'event_end', 'reg_limit', 'reg_fee', 'event_tag'];
+const formFields = ['event_name','event_description', 'event_type','eligibility','reg_deadline', 'event_start', 'event_end', 'reg_limit', 'reg_fee', 'event_tag', 'stockqty', 'merchandiseDetails'];
 const ACTIVE_STATUSES = ['PUBLISHED', 'ONGOING'];
 const ACTIVE_REG_STATUSES = ['REGISTERED', 'COMPLETED'];
 const formStatus = (event) => {
@@ -25,10 +25,14 @@ const isRegOpen = (event) => {
     return ( ACTIVE_STATUSES.includes(status) && !event.registration_closed &&
         new Date(event.reg_deadline).getTime() > now);
 };
-const isPPTelig = (elig, pType) => {
-    return (elig === 'ALL' ||
-         (elig === 'IIIT') && (pType === 'ITST') ||
-         (elig === 'NON_IIIT') && (pType === 'NITST'))
+const isPPTelig = (elig, pType, email = '') => {
+    const t = String(pType || '').trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_');
+    const e = String(elig || '').trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_');
+    const mail = String(email || '').trim().toLowerCase();
+    const iiitByMail = /@(([\w-]+\.)?students\.iiit\.ac\.in|([\w-]+\.)?research\.iiit\.ac\.in|([\w-]+\.)?iiit\.ac\.in)$/.test(mail);
+    const isIiit = ['ITST', 'IIIT', 'IIIT_STUDENT'].includes(t) || (t.includes('IIIT') && !t.includes('NON')) || iiitByMail;
+    const isNonIiit = ['NITST', 'NON_IIIT', 'NONIIIT'].includes(t) || t.includes('NON_IIIT') || t.includes('NONIIIT') || (!isIiit && !!mail);
+    return e === 'ALL' || (e === 'IIIT' && isIiit) || (e === 'NON_IIIT' && isNonIiit);
 };
 const getActiveRegistrationCount = async (eventId) =>
     Participant.countDocuments({
