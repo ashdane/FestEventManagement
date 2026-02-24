@@ -12,7 +12,7 @@ const DEFAULT_DRAFT = {
     reg_deadline: '', event_start: '', event_end: '', reg_limit: 100, reg_fee: 0,
     stockqty: 0, merch_sizes: '', merch_colors: '', purchaseLimitPerParticipant: 1
 };
-const EMPTY_ANALYTICS = { completed_events: 0, total_registrations: 0, total_sales: 0, total_revenue: 0, total_attendance: 0 };
+const EMPTY_ANALYTICS = { completed_events: 0, total_registrations: 0, total_sales: 0, total_revenue: 0, total_attendance: 0, totalRegistrations: 0, totalRevenue: 0, totalAttendance: 0 };
 const OrgDash = () => {
     const { token_verification } = useVerifyRoles();
     const { LogoutLogic } = useLogout();
@@ -133,6 +133,14 @@ const OrgDash = () => {
             {loading && <p>Loading dashboard...</p>}
             {!loading && activeView === VIEWS.DASHBOARD && (
                 <>
+                    <h2>Analytics</h2>
+                    <div className="row" style={{ flexWrap: 'wrap' }}>
+                        <div className="card">Completed: {analytics.completed_events ?? 0}</div>
+                        <div className="card">Registrations: {analytics.total_registrations ?? analytics.totalRegistrations ?? 0}</div>
+                        <div className="card">Sales: {analytics.total_sales ?? 0}</div>
+                        <div className="card">Revenue: INR {analytics.total_revenue ?? analytics.totalRevenue ?? 0}</div>
+                        <div className="card">Attendance: {analytics.total_attendance ?? analytics.totalAttendance ?? 0}</div>
+                    </div>
                     <h2>Events</h2>
                     <div className="column">
                         {events.map((e) => (
@@ -151,14 +159,6 @@ const OrgDash = () => {
                                 </button>
                             </div>
                         ))}
-                    </div>
-                    <h2>Analytics</h2>
-                    <div className="column">
-                        <div className="card">Completed: {analytics.completed_events}</div>
-                        <div className="card">Registrations: {analytics.total_registrations}</div>
-                        <div className="card">Sales: {analytics.total_sales}</div>
-                        <div className="card">Revenue: INR {analytics.total_revenue}</div>
-                        <div className="card">Attendance: {analytics.total_attendance}</div>
                     </div>
                 </>
             )}
