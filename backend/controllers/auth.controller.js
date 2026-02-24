@@ -32,6 +32,8 @@ const login = async (req, res) => {
             console.log("User not found");
             return res.status(404).json({ error: `User not found` }) //404: Not Found
         }
+        if (user.archived === true)
+            return res.status(403).json({ error: 'Account archived. Contact admin.' })
         if (user.enabled === false)
             return res.status(403).json({ error: 'Account disabled. Contact admin.' })
         const match = await user.ValidatePassword(password)

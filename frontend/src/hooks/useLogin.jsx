@@ -4,14 +4,8 @@ const useLogin = () => { // custom hooks must start with use! + they cant take a
         const navigate = useNavigate()
         const submitfunc = async (state) =>
         {
-            const response  = await AUTH.LoginAPI(state)
-            const { error, message } = response
-            if(error)
-            {
-                alert( `${error}` )
-            }
-            else
-            {
+            try {
+                const response  = await AUTH.LoginAPI(state)
                 const { message, token, usertype } = response
                 localStorage.setItem('token', token) //saving token to clients local storage
                 console.log("FULL SERVER RESPONSE:", response);
@@ -22,8 +16,14 @@ const useLogin = () => { // custom hooks must start with use! + they cant take a
                     navigate('/orgdash')
                 else
                     navigate('/pptdash')
+                return response
+            } catch (error) {
+                const msg = error?.message || 'Login failed';
+                if (msg.toLowerCase().includes('archived')) alert('Account archived');
+                else if (msg.toLowerCase().includes('disabled')) alert('Account disabled');
+                else alert(msg);
+                return null;
             }
-            return response
         }
         return { submitfunc }
 }

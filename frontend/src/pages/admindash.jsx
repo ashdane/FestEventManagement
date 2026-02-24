@@ -11,6 +11,7 @@ const AdminDash = () => {
     const [organizers, setOrganizers] = useState([]);
     const [newOrg, setNewOrg] = useState({ org_name: '', category: '', description: '' });
     const [lastCreds, setLastCreds] = useState(null);
+    const [lastResetCred, setLastResetCred] = useState(null);
     const [activeView, setActiveView] = useState('resets');
     const api = async (url, options = {}) => {
         const res = await fetch(url, {
@@ -29,7 +30,10 @@ const AdminDash = () => {
     };
     const act = async (type, id) => {
         const comments = window.prompt('Comments (optional)') || '';
-        await api(`/api/admin/resets/${type}/${id}`, { method: 'PUT', body: JSON.stringify({ comments }) });
+        const data = await api(`/api/admin/resets/${type}/${id}`, { method: 'PUT', body: JSON.stringify({ comments }) });
+        if (type === 'approve' && data?.newPassword) {
+            setLastResetCred({ requestId: id, password: data.newPassword });
+        }
         await load();
     };
     const orgAct = async (action, id) => {
@@ -52,7 +56,7 @@ const AdminDash = () => {
     }, [token, token_verification, LogoutLogic]);
     return (
         <div className="page">
-            <h1>ADMIN DASHBOARD</h1>
+            {/* <h1>ADMIN DASHBOARD</h1> */}
             <AdminTopNav activeView={activeView} onChangeView={setActiveView} />
             {activeView === 'resets' && (
                 <>
@@ -66,6 +70,11 @@ const AdminDash = () => {
                             </div>
                         </div>
                     ))}
+                    {lastResetCred && (
+                        <p className="card">
+                            Latest approved reset password (share with organizer): {lastResetCred.password}
+                        </p>
+                    )}
                     <h2>Reset History</h2>
                     {(history || []).map((r) => (
                         <div key={r._id} className="card">
@@ -77,7 +86,7 @@ const AdminDash = () => {
             )}
             {activeView === 'organizers' && (
                 <>
-                    <h2>Organizer Management</h2>
+                    {/* <h2>Organizer Management</h2> */}
                     <form onSubmit={createOrg} className="row">
                         <input value={newOrg.org_name} placeholder="Org name" onChange={(e) => setNewOrg((p) => ({ ...p, org_name: e.target.value }))} />
                         <input value={newOrg.category} placeholder="Category (optional)" onChange={(e) => setNewOrg((p) => ({ ...p, category: e.target.value }))} />

@@ -132,13 +132,13 @@ const OrgDash = () => {
     };
     return (
         <div className="page">
-            <h1>ORGANIZER DASHBOARD</h1>
+            {/* <h1>ORGANIZER DASHBOARD</h1> */}
             <OrgTopNav activeView={activeView} onChangeView={setActiveView} />
             {loading && <p>Loading dashboard...</p>}
             {!loading && activeView === VIEWS.DASHBOARD && (
                 <>
                     <h2>Events</h2>
-                    <div className="row">
+                    <div className="column">
                         {events.map((e) => (
                             <div key={e._id} className="card">
                                 <h3>{e.event_name}</h3>
@@ -149,7 +149,7 @@ const OrgDash = () => {
                         ))}
                     </div>
                     <h2>Analytics</h2>
-                    <div className="row">
+                    <div className="column">
                         <div className="card">Completed: {analytics.completed_events}</div>
                         <div className="card">Registrations: {analytics.total_registrations}</div>
                         <div className="card">Sales: {analytics.total_sales}</div>
@@ -162,7 +162,7 @@ const OrgDash = () => {
                 <>
                     <div className="card">
                         <h2>Create Event Draft</h2>
-                        <form onSubmit={createDraft} className="row">
+                        <form onSubmit={createDraft} className="column">
                             <input name="event_name" value={draftData.event_name} placeholder="Event Name" onChange={(e) => setDraftData((p) => ({ ...p, event_name: e.target.value }))} required />
                             <textarea name="event_description" value={draftData.event_description} placeholder="Description" onChange={(e) => setDraftData((p) => ({ ...p, event_description: e.target.value }))} required />
                             <select name="event_type" value={draftData.event_type} onChange={(e) => setDraftData((p) => ({ ...p, event_type: e.target.value }))}><option value="Normal">Normal</option><option value="Merchandise">Merchandise</option></select>
@@ -221,7 +221,7 @@ const OrgDash = () => {
                                 </tbody></table>
                             </div>
                             <h3>Forum Moderation</h3>
-                            <div className="row">
+                            <div className="column">
                                 <input placeholder="Post update or reply" value={forumText} onChange={(e) => setForumText(e.target.value)} />
                                 <label><input type="checkbox" checked={forumAnnouncement} onChange={(e) => setForumAnnouncement(e.target.checked)} /> Announcement</label>
                                 <button type="button" onClick={postForum}>Post</button>
@@ -230,7 +230,7 @@ const OrgDash = () => {
                                 <div key={m._id} className="card">
                                     <p><strong>{m.pinned ? '[Pinned] ' : ''}{m.isAnnouncement ? '[Announcement] ' : ''}{m.authorName}</strong></p>
                                     <p>{m.text}</p>
-                                    <div className="row">
+                                    <div className="column">
                                         <button type="button" onClick={() => pinForum(m._id, m.pinned)}>{m.pinned ? 'Unpin' : 'Pin'}</button>
                                         <button type="button" onClick={() => deleteForum(m._id)}>Delete</button>
                                     </div>
@@ -246,7 +246,7 @@ const OrgDash = () => {
             {!loading && activeView === VIEWS.PROFILE && (
                 <div className="card">
                     <h2>Organizer Profile</h2>
-                    <form onSubmit={saveProfile} className="row">
+                    <form onSubmit={saveProfile} className="column">
                         <input value={profile.org_name || ''} placeholder="Name" onChange={(e) => setProfile((p) => ({ ...p, org_name: e.target.value }))} />
                         <input value={profile.category || ''} placeholder="Category" onChange={(e) => setProfile((p) => ({ ...p, category: e.target.value }))} />
                         <input value={profile.contact_email || ''} placeholder="Contact Email" onChange={(e) => setProfile((p) => ({ ...p, contact_email: e.target.value }))} />
@@ -257,7 +257,7 @@ const OrgDash = () => {
                         <button type="submit">Save Profile</button>
                     </form>
                     <h3>Password Reset Request</h3>
-                    <form onSubmit={submitReset} className="row">
+                    <form onSubmit={submitReset} className="column">
                         <input value={resetReason} onChange={(e) => setResetReason(e.target.value)} placeholder="Reason for reset" />
                         <button type="submit">Request Reset</button>
                     </form>
